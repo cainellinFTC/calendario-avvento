@@ -62,29 +62,50 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
     const [timerRunning, setTimerRunning] = useState(false);
     const [timeElapsed, setTimeElapsed] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [audioStarted, setAudioStarted] = useState(false);
+    const [audioEnded, setAudioEnded] = useState(false);
     const audioRef = React.useRef(null);
-    
+
     const shuffledIds = useMemo(() => shuffleArray([1, 2, 3]), [boxId]);
 
     const handlePlay = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-            
+
             // --- CARICAMENTO MP3 ---
             audioRef.current.src = `/audio/song_${boxId}.mp3`;
             audioRef.current.play().then(() => {
-                showToast("Musica avviata! Il tempo scorre...", 'info');
+                setAudioStarted(true);
+                setAudioEnded(false);
             }).catch(error => {
                 console.error("Errore riproduzione audio (potrebbe essere blocco autoplay):", error);
                 showToast("Impossibile avviare l'audio. Clicca un punto qualsiasi della pagina e riprova.", 'error');
             });
             // -----------------------------------------
 
-            setTimerRunning(true);
-            setTimeElapsed(0);
+            // Avvia il timer solo se non è già in esecuzione
+            if (!timerRunning) {
+                setTimerRunning(true);
+            }
         }
-    }, [boxId, showToast]);
+    }, [boxId, showToast, timerRunning]);
+
+    // Event listener per quando l'audio termina
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleEnded = () => {
+            setAudioEnded(true);
+        };
+
+        audio.addEventListener('ended', handleEnded);
+
+        return () => {
+            audio.removeEventListener('ended', handleEnded);
+        };
+    }, []);
 
     useEffect(() => {
         let interval;
@@ -239,15 +260,40 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
                 </div>
                 
                 {/* Bottone Play */}
-                <div className="flex justify-center mb-8">
-                    <button 
-                        onClick={handlePlay} 
-                        className="bg-green-600 hover:bg-green-700 text-white font-extrabold py-4 px-8 rounded-full shadow-lg transition-all transform hover:scale-105"
+                <div className="flex justify-center mb-4">
+                    <button
+                        onClick={handlePlay}
+                        disabled={audioStarted && !audioEnded}
+                        className={`font-extrabold py-4 px-8 rounded-full shadow-lg transition-all transform ${
+                            audioStarted && !audioEnded
+                                ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                                : 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
+                        }`}
                     >
-                        ▶️ ASCOLTA IL BRANO
+                        {audioStarted ? '🔄 RIASCOLTA IL BRANO' : '▶️ ASCOLTA IL BRANO'}
                     </button>
                 </div>
-                
+
+                {/* Banner Informativo */}
+                {audioStarted && (
+                    <div className="mb-6 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg animate-slideIn">
+                        <div className="flex items-center">
+                            <span className="text-blue-600 text-2xl mr-2">🎵</span>
+                            <div className="flex-1">
+                                <p className="text-blue-800 font-semibold text-sm">Musica avviata! Il tempo scorre...</p>
+                                <div className="mt-1 h-1 bg-blue-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-blue-500 animate-progressBar"
+                                        style={{
+                                            animation: 'progressBar 60s linear infinite'
+                                        }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Opzioni di Risposta */}
                 <fieldset className="space-y-3 mb-8">
                     {shuffledIds.map(id => (
@@ -270,16 +316,13 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
                 </fieldset>
                 
                 {/* Bottoni Azione */}
-                <div className="flex justify-between items-center pt-4 border-t">
-                    <button 
-                        onClick={handleSubmit} 
-                        disabled={isConfirmDisabled} 
+                <div className="flex justify-center items-center pt-4 border-t">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isConfirmDisabled}
                         className={`py-3 px-6 rounded-full font-extrabold text-white transition-all transform ${isConfirmDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-lg hover:scale-105'}`}
                     >
                         {isSubmitting ? 'Salvataggio...' : 'Conferma Risposta'}
-                    </button>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 underline transition-colors">
-                        Chiudi senza inviare
                     </button>
                 </div>
             </div>
@@ -358,12 +401,12 @@ export default function App() {
         // Usa window.Swal perché SweetAlert2 sarà caricato tramite CDN
         if (window.Swal) {
             window.Swal.fire({
-                toast: true, // Lo visualizza come un toast in alto a destra
-                position: 'top-end',
+                position: 'center',
                 icon: type, // 'success', 'error', 'info', 'warning'
                 title: title || message, // Il messaggio principale
                 text: title ? message : '', // Se c'è un titolo, usa il messaggio come testo
-                showConfirmButton: false,
+                showConfirmButton: true,
+                confirmButtonText: 'OK',
                 timer: 4000,
                 timerProgressBar: true,
                 customClass: {
@@ -709,12 +752,32 @@ export default function App() {
                  .animate-zoomIn {
                      animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
                  }
+
+                 @keyframes slideIn {
+                     from {
+                         opacity: 0;
+                         transform: translateY(-10px);
+                     }
+                     to {
+                         opacity: 1;
+                         transform: translateY(0);
+                     }
+                 }
+                 .animate-slideIn {
+                     animation: slideIn 0.3s ease-out forwards;
+                 }
+
+                 @keyframes progressBar {
+                     from { width: 0%; }
+                     to { width: 100%; }
+                 }
+
                  /* Stili per un bel font */
                  body { font-family: 'Inter', sans-serif; }
-                 
+
                  /* Stile personalizzato per SweetAlert2 in modo che sia sopra GameModal */
                  .swal2-container--custom-z {
-                    z-index: 60; 
+                    z-index: 60;
                  }
              `}</style>
         </div>
