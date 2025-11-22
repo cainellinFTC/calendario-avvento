@@ -412,9 +412,10 @@ export default function App() {
     const [supabaseClient, setSupabaseClient] = useState(null);
     const [isClientReady, setIsClientReady] = useState(false);
     const [session, setSession] = useState(null);
-    const [attempts, setAttempts] = useState({}); 
+    const [attempts, setAttempts] = useState({});
     const [openBoxId, setOpenBoxId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
+    const [leaderboard, setLeaderboard] = useState([]);
     // RIMOSSO: Stato 'toast' non è più necessario
     
     // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
@@ -549,6 +550,45 @@ export default function App() {
 
         fetchAttempts();
     }, [session, supabaseClient, showToast]);
+
+    // 3. Caricamento Classifica (da vista database)
+    useEffect(() => {
+        if (!supabaseClient) return;
+
+        const fetchLeaderboard = async () => {
+            try {
+                // Legge dalla vista 'leaderboard_view' che deve essere creata nel database
+                const { data, error } = await supabaseClient
+                    .from('leaderboard_view')
+                    .select('*')
+                    .order('correct_answers', { ascending: false })
+                    .order('total_time', { ascending: true })
+                    .limit(3);
+
+                if (error) {
+                    console.error('Errore caricamento classifica:', error);
+                    // Se la vista non esiste, mostra un messaggio in console
+                    if (error.message.includes('does not exist')) {
+                        console.warn('La vista "leaderboard_view" non esiste. Crearla nel database Supabase.');
+                    }
+                    return;
+                }
+
+                if (data) {
+                    setLeaderboard(data);
+                }
+            } catch (error) {
+                console.error('Errore caricamento classifica:', error);
+            }
+        };
+
+        fetchLeaderboard();
+
+        // Ricarica la classifica ogni 30 secondi
+        const interval = setInterval(fetchLeaderboard, 30000);
+
+        return () => clearInterval(interval);
+    }, [supabaseClient]);
 
     const today = useMemo(() => {
         const d = new Date();
@@ -766,6 +806,50 @@ export default function App() {
                         );
                     })}
                 </div>
+
+                {/* Classifica */}
+                {leaderboard.length > 0 && (
+                    <div className="mt-8 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
+                        <h2 className="text-2xl font-extrabold text-center text-red-700 mb-6 border-b-2 border-red-300 pb-3">
+                            🏆 Classifica Top 3
+                        </h2>
+                        <div className="space-y-4">
+                            {leaderboard.map((player, index) => {
+                                const medals = ['🥇', '🥈', '🥉'];
+                                const bgColors = [
+                                    'bg-gradient-to-r from-yellow-100 to-yellow-50 border-yellow-400',
+                                    'bg-gradient-to-r from-gray-100 to-gray-50 border-gray-400',
+                                    'bg-gradient-to-r from-orange-100 to-orange-50 border-orange-400'
+                                ];
+
+                                return (
+                                    <div
+                                        key={player.user_id}
+                                        className={`flex items-center justify-between p-4 rounded-xl border-2 ${bgColors[index]} shadow-md`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-4xl">{medals[index]}</span>
+                                            <div>
+                                                <p className="font-bold text-lg text-gray-800">
+                                                    {player.display_name}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    {player.correct_answers} risposte corrette
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-xl text-red-600">
+                                                {Math.floor(player.total_time / 60)}:{(player.total_time % 60).toString().padStart(2, '0')}
+                                            </p>
+                                            <p className="text-xs text-gray-500">tempo totale</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </main>
               <style>{`
                  @keyframes zoomIn {
