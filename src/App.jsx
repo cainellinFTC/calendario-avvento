@@ -333,6 +333,7 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 const AuthScreen = ({ supabaseClient }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [nickname, setNickname] = useState('');
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
@@ -341,22 +342,32 @@ const AuthScreen = ({ supabaseClient }) => {
         e.preventDefault();
         setLoading(true);
         setMsg('');
-        
+
         try {
             if (!supabaseClient) throw new Error("Supabase non configurato.");
 
             let result;
             if (isRegistering) {
-                result = await supabaseClient.auth.signUp({ email, password });
+                // Registrazione con nickname nel display_name
+                result = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            display_name: nickname
+                        }
+                    }
+                });
             } else {
                 result = await supabaseClient.auth.signInWithPassword({ email, password });
             }
 
             if (result.error) throw result.error;
-            
+
             if (isRegistering) {
                 setMsg('Registrazione completata! Controlla la mail per confermare, poi effettua il login.');
                 setIsRegistering(false);
+                setNickname(''); // Reset nickname dopo registrazione
             } else {
                 // Login gestito dal listener in App
             }
@@ -372,6 +383,16 @@ const AuthScreen = ({ supabaseClient }) => {
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm border-4 border-green-500">
                 <h2 className="text-3xl font-extrabold mb-6 text-red-600 text-center">{isRegistering ? '🎄 Registrati' : '🎅 Accedi'}</h2>
                 <form onSubmit={handleAuth} className="space-y-4">
+                    {isRegistering && (
+                        <input
+                            type="text"
+                            placeholder="Nickname"
+                            className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500"
+                            value={nickname}
+                            onChange={e=>setNickname(e.target.value)}
+                            required
+                        />
+                    )}
                     <input type="email" placeholder="Email" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={email} onChange={e=>setEmail(e.target.value)} required />
                     <input type="password" placeholder="Password" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={password} onChange={e=>setPassword(e.target.value)} required />
                     <button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md">
@@ -684,7 +705,9 @@ export default function App() {
                 <div className="flex justify-between items-center">
                     <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
                     <div className="text-right">
-                        <p className="text-sm">{session.user.email}</p>
+                        <p className="text-sm font-semibold">
+                            {session.user.user_metadata?.display_name || session.user.email}
+                        </p>
                         <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
                     </div>
                 </div>
