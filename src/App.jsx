@@ -13,6 +13,8 @@ const SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 
 // --- DATI E CONFIGURAZIONE ---
 const TEST_MONTH = 11; // 11 = Dicembre
+const TEST_DAY = 24; // Imposta a 24 per testare il giorno 24, null per usare la data reale
+const DEBUG_MODE = true; // Abilita funzioni di debug (pulsante per completare tutte le caselle)
 
 const songData = {
     1: { correctId: 2, titles: { 1: "Jingle Bells", 2: "All I Want For Christmas Is You", 3: "Silent Night (Remix)" } },
@@ -55,7 +57,7 @@ const shuffleArray = (array) => {
 
 // RIMOSSO: Il componente ToastMessage non è più necessario.
 
-const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast }) => {
+const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast, currentAttempts, currentDay }) => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [timerRunning, setTimerRunning] = useState(false);
     const [timeElapsed, setTimeElapsed] = useState(0);
@@ -69,7 +71,7 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             
-            // --- CARICAMENTO MP3 (Rimosso Tone.js) ---
+            // --- CARICAMENTO MP3 ---
             audioRef.current.src = `/audio/song_${boxId}.mp3`;
             audioRef.current.play().then(() => {
                 showToast("Musica avviata! Il tempo scorre...", 'info');
@@ -124,10 +126,96 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
                 console.warn("Supabase non inizializzato. Simulazione salvataggio.");
             }
 
-            /* INSERIRE QUI UNA sweetAlert con il testo "Grazie per aver partecipato, torna domani per una nuova canzone" , 
-               chiudere automaticamente l'alert dopo 5 secondi */ 
+            // Aggiorna lo stato dell'app principale
+            onAttemptSubmitted(boxId);
 
-            onAttemptSubmitted(boxId); // Aggiorna lo stato dell'app principale
+            // Calcola lo stato delle caselle dopo questo tentativo
+            const updatedAttempts = {...currentAttempts, [boxId]: true};
+            const availableBoxes = [];
+            for (let day = 1; day <= currentDay && day <= 24; day++) {
+                if (!updatedAttempts[day]) {
+                    availableBoxes.push(day);
+                }
+            }
+            const hasAvailableBoxes = availableBoxes.length > 0;
+            const isDay24 = boxId === 24;
+            const allCompleted = Object.keys(updatedAttempts).length === Math.min(currentDay, 24);
+
+            // Mostra SweetAlert di conferma personalizzato
+            if (window.Swal) {
+                // Caso speciale: giorno 24 e tutte le caselle completate
+                if (isDay24 && allCompleted) {
+                    // Effetto neve
+                    const confettiScript = document.createElement('script');
+                    confettiScript.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+                    confettiScript.onload = () => {
+                        // Effetto fiocchi di neve
+                        const duration = 15 * 1000;
+                        const animationEnd = Date.now() + duration;
+                        const defaults = { startVelocity: 0, spread: 360, ticks: 60, zIndex: 9999 };
+
+                        function randomInRange(min, max) {
+                            return Math.random() * (max - min) + min;
+                        }
+
+                        const interval = setInterval(function() {
+                            const timeLeft = animationEnd - Date.now();
+
+                            if (timeLeft <= 0) {
+                                return clearInterval(interval);
+                            }
+
+                            const particleCount = 2;
+                            window.confetti({
+                                ...defaults,
+                                particleCount,
+                                origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 },
+                                colors: ['#ffffff', '#e0f7ff', '#b3e5fc'],
+                                shapes: ['circle'],
+                                scalar: randomInRange(0.4, 1),
+                                drift: randomInRange(-0.4, 0.4)
+                            });
+                        }, 50);
+                    };
+                    document.head.appendChild(confettiScript);
+
+                    window.Swal.fire({
+                        title: '🎄 Complimenti! 🎄',
+                        html: '<p style="font-size: 1.1em; line-height: 1.6;">Tra qualche giorno saprai se avrai vinto.<br>Per il momento <strong>Il Circolo</strong> ti augura un buon Natale!</p>',
+                        icon: 'success',
+                        iconColor: '#d32f2f',
+                        timer: 10000,
+                        timerProgressBar: true,
+                        showConfirmButton: true,
+                        confirmButtonText: 'Chiudi',
+                        confirmButtonColor: '#2e7d32',
+                        background: '#fff',
+                        backdrop: 'rgba(0,0,0,0.4)'
+                    });
+                } else if (hasAvailableBoxes) {
+                    // Ci sono caselle disponibili
+                    window.Swal.fire({
+                        title: 'Grazie per aver partecipato!',
+                        text: 'Completa le altre giornate per avere più possibilità di vincere',
+                        icon: 'success',
+                        timer: 5000,
+                        timerProgressBar: true,
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    // Nessuna casella disponibile, torna domani
+                    window.Swal.fire({
+                        title: 'Grazie per aver partecipato!',
+                        text: 'Torna domani per una nuova canzone',
+                        icon: 'success',
+                        timer: 5000,
+                        timerProgressBar: true,
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }
         } catch (error) {
             console.error("Errore Supabase:", error.message);
             showToast("Errore nel salvataggio: " + error.message, 'error', 'Errore DB'); 
@@ -402,6 +490,8 @@ export default function App() {
         const d = new Date();
         // Se il mese non è il mese di test (Dicembre), lo forziamo
         if (d.getMonth() !== TEST_MONTH) d.setMonth(TEST_MONTH);
+        // Se TEST_DAY è impostato, forza quel giorno per il testing
+        if (TEST_DAY !== null) d.setDate(TEST_DAY);
         return d;
     }, []);
 
@@ -416,15 +506,83 @@ export default function App() {
         const status = getBoxStatus(day);
         if (status === 'available') setOpenBoxId(day);
         // MODIFICATA: Aggiornate le chiamate a showToast
-        else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta'); 
+        else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta');
         else if (status === 'locked') showToast("Non puoi aprire questa casella in anticipo!", 'info', 'Ancora Bloccata');
         else showToast("Il Calendario è attivo solo a Dicembre (o nel mese di test).", 'error', 'Mese Sbagliato');
         // FINE MODIFICATA
     };
 
+    // --- FUNZIONI DI DEBUG ---
+    const handleDebugCompleteAll = async () => {
+        if (!DEBUG_MODE || !supabaseClient || !session) return;
+
+        const confirmed = window.confirm('DEBUG: Vuoi completare tutte le caselle dal 1 al 23? Questo inserirà record fittizi nel database.');
+        if (!confirmed) return;
+
+        try {
+            const recordsToInsert = [];
+            for (let day = 1; day <= 23; day++) {
+                if (!attempts[day]) {
+                    const data = songData[day];
+                    recordsToInsert.push({
+                        user_id: session.user.id,
+                        box_id: day,
+                        selected_id: `${day}_${data.correctId}`,
+                        time_spent_seconds: Math.floor(Math.random() * 30) + 10,
+                        is_correct: true
+                    });
+                }
+            }
+
+            if (recordsToInsert.length > 0) {
+                const { error } = await supabaseClient
+                    .from('advent_attempts')
+                    .insert(recordsToInsert);
+
+                if (error) throw error;
+
+                // Aggiorna lo stato locale
+                const newAttempts = {...attempts};
+                recordsToInsert.forEach(record => {
+                    newAttempts[record.box_id] = true;
+                });
+                setAttempts(newAttempts);
+
+                showToast(`DEBUG: ${recordsToInsert.length} caselle completate automaticamente!`, 'success', 'Debug Mode');
+            } else {
+                showToast('DEBUG: Tutte le caselle 1-23 sono già completate!', 'info', 'Debug Mode');
+            }
+        } catch (error) {
+            console.error('Errore debug:', error);
+            showToast('Errore durante il completamento automatico: ' + error.message, 'error', 'Debug Error');
+        }
+    };
+
+    const handleDebugReset = async () => {
+        if (!DEBUG_MODE || !supabaseClient || !session) return;
+
+        const confirmed = window.confirm('DEBUG: Vuoi cancellare TUTTI i tuoi tentativi? Questa azione non può essere annullata!');
+        if (!confirmed) return;
+
+        try {
+            const { error } = await supabaseClient
+                .from('advent_attempts')
+                .delete()
+                .eq('user_id', session.user.id);
+
+            if (error) throw error;
+
+            setAttempts({});
+            showToast('DEBUG: Tutti i tentativi sono stati cancellati!', 'success', 'Debug Mode');
+        } catch (error) {
+            console.error('Errore debug:', error);
+            showToast('Errore durante il reset: ' + error.message, 'error', 'Debug Error');
+        }
+    };
+
     // --- LOGICHE DI RENDERING CONDIZIONALE ---
     
-    // 0. Schermata di attesa caricamento libreria
+    // 0. Schermata di attesa caricamento libreria 
     if (!isClientReady) {
            return (
              <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -463,26 +621,50 @@ export default function App() {
         }}>
             
             {openBoxId && (
-                <GameModal 
-                    boxId={openBoxId} 
-                    data={songData[openBoxId]} 
+                <GameModal
+                    boxId={openBoxId}
+                    data={songData[openBoxId]}
                     userId={session.user.id}
                     onClose={() => setOpenBoxId(null)}
                     onAttemptSubmitted={(id) => setAttempts(p => ({...p, [id]: true}))}
-                    supabaseClient={supabaseClient} 
+                    supabaseClient={supabaseClient}
                     showToast={showToast}
+                    currentAttempts={attempts}
+                    currentDay={today.getDate()}
                 />
             )}
 
             {/* RIMOSSO: Il rendering del componente Toast non è più qui */}
             {/* {toast && <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast(null)} />} */}
 
-            <header className="bg-black bg-opacity-70 text-white p-4 flex justify-between items-center shadow-lg">
-                <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
-                <div className="text-right">
-                    <p className="text-sm">{session.user.email}</p>
-                    <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
+            <header className="bg-black bg-opacity-70 text-white p-4 shadow-lg">
+                <div className="flex justify-between items-center">
+                    <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
+                    <div className="text-right">
+                        <p className="text-sm">{session.user.email}</p>
+                        <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
+                    </div>
                 </div>
+                {DEBUG_MODE && (
+                    <div className="mt-3 pt-3 border-t border-yellow-600 flex gap-2 items-center">
+                        <span className="text-xs text-yellow-400 font-bold mr-2">🔧 DEBUG MODE:</span>
+                        <button
+                            onClick={handleDebugCompleteAll}
+                            className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+                        >
+                            ✓ Completa 1-23
+                        </button>
+                        <button
+                            onClick={handleDebugReset}
+                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
+                        >
+                            🗑️ Reset Tutto
+                        </button>
+                        <span className="text-xs text-gray-300 ml-2">
+                            Giorno Simulato: {TEST_DAY !== null ? TEST_DAY : 'Reale'}
+                        </span>
+                    </div>
+                )}
             </header>
 
             <main className="container mx-auto p-4 py-8">
