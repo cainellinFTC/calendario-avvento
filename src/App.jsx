@@ -1,19 +1,21 @@
+
+// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 // La riga 'import { createClient } from '@supabase/supabase-js';' è stata rimossa
 // perché causava un errore di risoluzione nell'ambiente di esecuzione.
-// Useremo il caricamento tramite CDN e l'oggetto globale 'window.supabase'.
 
 // --- CONFIGURAZIONE SUPABASE (DEVI MODIFICARE QUESTI VALORI) ---
-// Vai su Supabase -> Project Settings -> API per trovare questi dati
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL; 
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Rimuovi questo commento dopo aver configurato le tue chiavi.
+const SUPABASE_URL ="https://jpfejnxrxhzieqsnblui.supabase.co"; 
+const SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZmVqbnhyeGh6aWVxc25ibHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NDUyODIsImV4cCI6MjA3OTMyMTI4Mn0.hhz6gTQxbakpIfaZGjtxfnrpbZ4P4SLFjOCP2bwbAJo";
 
 // --- DATI E CONFIGURAZIONE ---
 const TEST_MONTH = 11; // 11 = Dicembre
 
 const songData = {
-    1: { correctId: 2, titles: { 1: "Jingle Bells (Cover)", 2: "Deck the Halls", 3: "Silent Night (Remix)" } },
+    1: { correctId: 2, titles: { 1: "Jingle Bells", 2: "All I Want For Christmas Is You", 3: "Silent Night (Remix)" } },
     2: { correctId: 3, titles: { 1: "We Wish You a Merry Christmas", 2: "The First Noel", 3: "Let It Snow" } },
     3: { correctId: 1, titles: { 1: "Santa Claus Is Comin' to Town", 2: "It's Beginning to Look a Lot Like Christmas", 3: "Winter Wonderland" } },
     4: { correctId: 2, titles: { 1: "Feliz Navidad", 2: "White Christmas", 3: "Have Yourself a Merry Little Christmas" } },
@@ -51,7 +53,9 @@ const shuffleArray = (array) => {
 
 // --- COMPONENTI UI ---
 
-const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient }) => {
+// RIMOSSO: Il componente ToastMessage non è più necessario.
+
+const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast }) => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [timerRunning, setTimerRunning] = useState(false);
     const [timeElapsed, setTimeElapsed] = useState(0);
@@ -67,17 +71,18 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
             
             // --- CARICAMENTO MP3 (Rimosso Tone.js) ---
             audioRef.current.src = `/audio/song_${boxId}.mp3`;
-            audioRef.current.play().catch(error => {
-                // Gestisce l'errore di Autoplay bloccato dal browser (comune)
+            audioRef.current.play().then(() => {
+                showToast("Musica avviata! Il tempo scorre...", 'info');
+            }).catch(error => {
                 console.error("Errore riproduzione audio (potrebbe essere blocco autoplay):", error);
-                alert("Impossibile avviare l'audio automaticamente. Clicca un punto qualsiasi della pagina e riprova.");
+                showToast("Impossibile avviare l'audio. Clicca un punto qualsiasi della pagina e riprova.", 'error');
             });
             // -----------------------------------------
 
             setTimerRunning(true);
             setTimeElapsed(0);
         }
-    }, [boxId]);
+    }, [boxId, showToast]);
 
     useEffect(() => {
         let interval;
@@ -87,7 +92,7 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
             clearInterval(interval);
         }
         return () => clearInterval(interval);
-    }, [timerRunning]);
+    }, [timerRunning, timeElapsed]);
 
     const handleSubmit = async () => {
         if (!selectedAnswer || isSubmitting) return;
@@ -98,8 +103,10 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 
         setIsSubmitting(true);
 
-        const isCorrect = parseInt(selectedAnswer.split('_')[1]) === data.correctId;
-
+        const selectedOptionId = parseInt(selectedAnswer.split('_')[1]);
+        const isCorrect = selectedOptionId === data.correctId;
+        const songTitle = data.titles[selectedOptionId]; // Il titolo selezionato
+               
         try {
             if (supabaseClient) {
                 const { error } = await supabaseClient
@@ -116,52 +123,76 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
             } else {
                 console.warn("Supabase non inizializzato. Simulazione salvataggio.");
             }
-            onAttemptSubmitted(boxId);
+
+            /* INSERIRE QUI UNA sweetAlert con il testo "Grazie per aver partecipato, torna domani per una nuova canzone" , 
+               chiudere automaticamente l'alert dopo 5 secondi */ 
+
+            onAttemptSubmitted(boxId); // Aggiorna lo stato dell'app principale
         } catch (error) {
             console.error("Errore Supabase:", error.message);
-            // Usando alert() perché è un ambiente di sandbox
-            alert("Errore nel salvataggio: " + error.message); 
+            showToast("Errore nel salvataggio: " + error.message, 'error', 'Errore DB'); 
         } finally {
             setIsSubmitting(false);
             onClose();
         }
     };
 
-    const isConfirmDisabled = selectedAnswer === null || isSubmitting;
+    const isConfirmDisabled = selectedAnswer === null || isSubmitting || !timerRunning;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4">
             <audio ref={audioRef} preload="auto" />
-            <div className="bg-white p-6 rounded-xl shadow-2xl w-11/12 max-w-md animate-zoomIn">
-                <h2 className="text-2xl font-extrabold text-red-700 mb-4 text-center">Indovina la canzone</h2>
-                <div className="text-center mb-4 p-2 bg-gray-100 rounded-lg">
-                    <span className="text-xl font-mono text-gray-800">Tempo: {timeElapsed}s</span>
+            <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md animate-zoomIn border-4 border-red-500">
+                <h2 className="text-3xl font-extrabold text-red-700 mb-6 text-center border-b pb-2">Giorno {boxId}: Indovina la Canzone</h2>
+                
+                {/* Timer */}
+                <div className="text-center mb-6 p-3 bg-red-100 rounded-xl border border-red-300">
+                    <span className="text-xl font-mono text-gray-800">Tempo impiegato: <span className="text-red-700 font-bold">{timeElapsed}s</span></span>
                 </div>
-                <div className="flex justify-center mb-6">
-                    <button onClick={handlePlay} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full">
-                        Play Musica ({boxId})
+                
+                {/* Bottone Play */}
+                <div className="flex justify-center mb-8">
+                    <button 
+                        onClick={handlePlay} 
+                        className="bg-green-600 hover:bg-green-700 text-white font-extrabold py-4 px-8 rounded-full shadow-lg transition-all transform hover:scale-105"
+                    >
+                        ▶️ ASCOLTA IL BRANO
                     </button>
                 </div>
-                <fieldset className="space-y-3 mb-6">
+                
+                {/* Opzioni di Risposta */}
+                <fieldset className="space-y-3 mb-8">
                     {shuffledIds.map(id => (
-                        <div key={id} className="flex items-center">
+                        <label 
+                            key={id} 
+                            htmlFor={`s-${id}`} 
+                            className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${selectedAnswer === `${boxId}_${id}` ? 'bg-red-100 border-red-500 shadow-md' : 'bg-white hover:bg-gray-50 border-gray-300'} ${!timerRunning ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
                             <input 
                                 id={`s-${id}`} name="guess" type="radio" value={`${boxId}_${id}`}
                                 onChange={(e) => setSelectedAnswer(e.target.value)}
                                 disabled={!timerRunning}
-                                className="h-5 w-5 text-red-600"
+                                className="h-5 w-5 text-red-600 focus:ring-red-500"
                             />
-                            <label htmlFor={`s-${id}`} className="ml-3 text-sm font-medium text-gray-700">
+                            <span className="ml-3 text-lg font-medium text-gray-800">
                                 {data.titles[id]}
-                            </label>
-                        </div>
+                            </span>
+                        </label>
                     ))}
                 </fieldset>
-                <div className="flex justify-between">
-                    <button onClick={handleSubmit} disabled={isConfirmDisabled} className={`py-2 px-4 rounded font-bold text-white ${isConfirmDisabled ? 'bg-gray-400' : 'bg-red-600'}`}>
-                        {isSubmitting ? '...' : 'Conferma'}
+                
+                {/* Bottoni Azione */}
+                <div className="flex justify-between items-center pt-4 border-t">
+                    <button 
+                        onClick={handleSubmit} 
+                        disabled={isConfirmDisabled} 
+                        className={`py-3 px-6 rounded-full font-extrabold text-white transition-all transform ${isConfirmDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-lg hover:scale-105'}`}
+                    >
+                        {isSubmitting ? 'Salvataggio...' : 'Conferma Risposta'}
                     </button>
-                    <button onClick={onClose} className="text-gray-500">Chiudi</button>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 underline transition-colors">
+                        Chiudi senza inviare
+                    </button>
                 </div>
             </div>
         </div>
@@ -207,18 +238,18 @@ const AuthScreen = ({ supabaseClient }) => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-                <h2 className="text-2xl font-bold mb-4 text-red-600">{isRegistering ? 'Registrati' : 'Accedi'}</h2>
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm border-4 border-green-500">
+                <h2 className="text-3xl font-extrabold mb-6 text-red-600 text-center">{isRegistering ? '🎄 Registrati' : '🎅 Accedi'}</h2>
                 <form onSubmit={handleAuth} className="space-y-4">
-                    <input type="email" placeholder="Email" className="w-full border p-2 rounded" value={email} onChange={e=>setEmail(e.target.value)} required />
-                    <input type="password" placeholder="Password" className="w-full border p-2 rounded" value={password} onChange={e=>setPassword(e.target.value)} required />
-                    <button type="submit" disabled={loading} className="w-full bg-green-600 text-white p-2 rounded font-bold">
-                        {loading ? 'Attendi...' : (isRegistering ? 'Registrati' : 'Entra')}
+                    <input type="email" placeholder="Email" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={email} onChange={e=>setEmail(e.target.value)} required />
+                    <input type="password" placeholder="Password" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={password} onChange={e=>setPassword(e.target.value)} required />
+                    <button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md">
+                        {loading ? 'Attendi...' : (isRegistering ? 'Crea Account' : 'Accedi al Calendario')}
                     </button>
                 </form>
-                {msg && <p className="mt-4 text-sm text-center text-blue-600">{msg}</p>}
-                <button onClick={()=>setIsRegistering(!isRegistering)} className="mt-4 w-full text-xs text-gray-500 underline">
-                    {isRegistering ? 'Hai già un account? Accedi' : 'Crea un account'}
+                {msg && <p className="mt-4 text-sm text-center text-red-700 font-medium bg-red-50 p-2 rounded">{msg}</p>}
+                <button onClick={()=>setIsRegistering(!isRegistering)} className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors">
+                    {isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati ora'}
                 </button>
             </div>
         </div>
@@ -232,15 +263,57 @@ export default function App() {
     const [attempts, setAttempts] = useState({}); 
     const [openBoxId, setOpenBoxId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
+    // RIMOSSO: Stato 'toast' non è più necessario
+    
+    // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
+    const showToast = useCallback((message, type, title = '') => {
+        // Usa window.Swal perché SweetAlert2 sarà caricato tramite CDN
+        if (window.Swal) {
+            window.Swal.fire({
+                toast: true, // Lo visualizza come un toast in alto a destra
+                position: 'top-end',
+                icon: type, // 'success', 'error', 'info', 'warning'
+                title: title || message, // Il messaggio principale
+                text: title ? message : '', // Se c'è un titolo, usa il messaggio come testo
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                customClass: {
+                    container: 'swal2-container--custom-z' // Aggiungi una classe per z-index
+                }
+            });
+        } else {
+            console.warn(`Tentativo di mostrare toast: ${message} (${type}). SweetAlert2 non è pronto.`);
+        }
+    }, []);
+    // ** FINE MODIFICATA **
 
-    // 0. Inizializzazione Supabase Dinamica
+    // 0. Inizializzazione Supabase e SweetAlert2 Dinamica
     useEffect(() => {
+        const initSweetAlert = () => {
+             // Inietta il CSS per SweetAlert2
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
+            document.head.appendChild(link);
+            
+            // Inietta lo script SweetAlert2
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+            script.async = true;
+            document.onload = () => console.log('SweetAlert2 caricato');
+            document.head.appendChild(script);
+        };
+        
         const initClient = () => {
+            initSweetAlert(); // Carica SweetAlert2 insieme o dopo Supabase
+            
             if (window.supabase) {
                 if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes("INSERISCI")) {
                     try {
                         const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                         setSupabaseClient(client);
+                        // showToast("Connessione a Supabase riuscita.", 'success'); // Commentato per evitare che si attivi prima di SwAl
                     } catch (e) {
                         console.error("Errore inizializzazione client Supabase:", e);
                         setErrorMsg("Errore inizializzazione Supabase. Controlla le chiavi.");
@@ -254,29 +327,29 @@ export default function App() {
             setIsClientReady(true);
         };
 
-        // Se la libreria è già stata caricata, procedi
+        // Se la libreria Supabase è già stata caricata, procedi
         if (window.supabase) {
             initClient();
             return;
         }
 
-        // Se non è caricata, iniettiamo dinamicamente lo script per una maggiore affidabilità
-        const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-        script.async = true;
-        script.onload = initClient; // Quando lo script è caricato, inizializza
-        script.onerror = () => {
+        // Altrimenti, iniettiamo dinamicamente lo script Supabase
+        const scriptSupabase = document.createElement('script');
+        scriptSupabase.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        scriptSupabase.async = true;
+        scriptSupabase.onload = initClient; // Quando Supabase è caricato, inizializza anche SweetAlert2 e il client
+        scriptSupabase.onerror = () => {
             console.error("ERRORE CARICAMENTO: Supabase CDN non è riuscito a caricare.");
             setErrorMsg("ERRORE CARICAMENTO: Supabase CDN non è riuscito a caricare.");
             setIsClientReady(true);
         };
-        document.head.appendChild(script);
+        document.head.appendChild(scriptSupabase);
 
         return () => {
-             // Rimuove lo script se presente per pulizia
-             if (document.head.contains(script)) {
-                document.head.removeChild(script);
-            }
+             // Rimuove lo script Supabase (e implicito SweetAlert2 non è gestito qui)
+             if (document.head.contains(scriptSupabase)) {
+                 document.head.removeChild(scriptSupabase);
+             }
         };
     }, []); // Esegue solo una volta
 
@@ -290,10 +363,16 @@ export default function App() {
 
         const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            if (session) {
+                // MODIFICATA: Aggiunto un titolo all'alert di successo
+                showToast(`Benvenuto, ${session.user.email}!`, 'success', 'Accesso Riuscito');
+            } else {
+                showToast("Sei stato disconnesso.", 'info', 'Logout');
+            }
         });
 
         return () => subscription.unsubscribe();
-    }, [supabaseClient]);
+    }, [supabaseClient, showToast]);
 
     // 2. Caricamento Dati (Tentativi) (dipende da sessione e supabaseClient)
     useEffect(() => {
@@ -307,8 +386,8 @@ export default function App() {
 
             if (error) {
                 console.error("Errore fetch tentativi:", error);
-                // Aggiorna lo stato di errore per un feedback visivo, soprattutto se la tabella manca
-                alert("Errore nel caricamento dei dati: " + error.message + ". Assicurati che la tabella 'advent_attempts' esista.");
+                // MODIFICATA: Aggiunto un titolo all'alert di errore
+                showToast("Errore nel caricamento dei dati: " + error.message + ". Assicurati che la tabella 'advent_attempts' esista.", 'error', 'Errore Database');
             } else {
                 const completed = {};
                 if(data) data.forEach(row => completed[row.box_id] = true);
@@ -317,16 +396,17 @@ export default function App() {
         };
 
         fetchAttempts();
-    }, [session, supabaseClient]);
+    }, [session, supabaseClient, showToast]);
 
     const today = useMemo(() => {
         const d = new Date();
+        // Se il mese non è il mese di test (Dicembre), lo forziamo
         if (d.getMonth() !== TEST_MONTH) d.setMonth(TEST_MONTH);
         return d;
     }, []);
 
     const getBoxStatus = (day) => {
-        if (today.getMonth() !== TEST_MONTH) return 'blocked';
+        if (today.getMonth() !== TEST_MONTH) return 'blocked'; // Se il mese è sbagliato, blocca
         if (attempts[day]) return 'opened';
         if (day <= today.getDate()) return 'available';
         return 'locked';
@@ -335,22 +415,25 @@ export default function App() {
     const handleBoxClick = (day) => {
         const status = getBoxStatus(day);
         if (status === 'available') setOpenBoxId(day);
-        else if (status === 'opened') alert("Hai già indovinato questa canzone!"); 
-        else alert("Non ancora disponibile o mese errato.");
+        // MODIFICATA: Aggiornate le chiamate a showToast
+        else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta'); 
+        else if (status === 'locked') showToast("Non puoi aprire questa casella in anticipo!", 'info', 'Ancora Bloccata');
+        else showToast("Il Calendario è attivo solo a Dicembre (o nel mese di test).", 'error', 'Mese Sbagliato');
+        // FINE MODIFICATA
     };
 
     // --- LOGICHE DI RENDERING CONDIZIONALE ---
     
     // 0. Schermata di attesa caricamento libreria
     if (!isClientReady) {
-         return (
-            <div className="min-h-screen flex items-center justify-center bg-green-50">
-                <p className="text-green-800 font-semibold text-lg animate-pulse">Caricamento sistema...</p>
-                 <style>{`
-                    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-                    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-                `}</style>
-            </div>
+           return (
+             <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                 <p className="text-green-800 font-semibold text-lg animate-pulse">Caricamento sistema...</p>
+                   <style>{`
+                       .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+                       @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+                   `}</style>
+             </div>
         );
     }
 
@@ -358,8 +441,8 @@ export default function App() {
     if (errorMsg || !supabaseClient) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-red-100 p-4">
-                <h1 className="text-2xl font-bold text-red-700">Errore di Configurazione/Caricamento</h1>
-                <p className="mt-4 text-center text-red-600 font-medium">
+                <h1 className="text-2xl font-bold text-red-700">⚠️ Errore di Configurazione/Caricamento</h1>
+                <p className="mt-4 text-center text-red-600 font-medium max-w-lg">
                     {errorMsg || "Chiavi Supabase mancanti o non valide. Inserisci SUPABASE_URL e SUPABASE_ANON_KEY nel file App.jsx."}
                 </p>
                 <p className="mt-2 text-sm text-gray-700">Controlla la console del browser (F12) per i dettagli.</p>
@@ -372,7 +455,12 @@ export default function App() {
 
     // 3. Applicazione Principale
     return (
-        <div className="min-h-screen bg-green-800 font-sans" style={{backgroundImage: 'url(https://placehold.co/1200x800/228B22/ffffff?text=Sfondo+Natalizio)', backgroundSize: 'cover'}}>
+        <div className="min-h-screen font-sans" style={{
+            backgroundImage: 'url(https://placehold.co/1200x800/1E392A/ffffff?text=Calendario+Avvento+Musical)', 
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundAttachment: 'fixed'
+        }}>
             
             {openBoxId && (
                 <GameModal 
@@ -382,42 +470,71 @@ export default function App() {
                     onClose={() => setOpenBoxId(null)}
                     onAttemptSubmitted={(id) => setAttempts(p => ({...p, [id]: true}))}
                     supabaseClient={supabaseClient} 
+                    showToast={showToast}
                 />
             )}
 
-            <header className="bg-black bg-opacity-70 text-white p-4 flex justify-between items-center">
-                <h1 className="font-bold text-xl">Calendario Musicale (Supabase)</h1>
+            {/* RIMOSSO: Il rendering del componente Toast non è più qui */}
+            {/* {toast && <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast(null)} />} */}
+
+            <header className="bg-black bg-opacity-70 text-white p-4 flex justify-between items-center shadow-lg">
+                <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
                 <div className="text-right">
-                    <p className="text-xs">{session.user.email}</p>
-                    <button onClick={() => supabaseClient.auth.signOut()} className="text-xs text-yellow-400 underline">Logout</button>
+                    <p className="text-sm">{session.user.email}</p>
+                    <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
                 </div>
             </header>
 
-            <main className="container mx-auto p-4">
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 bg-white bg-opacity-90 p-6 rounded-xl shadow-2xl mt-8">
+            <main className="container mx-auto p-4 py-8">
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
                     {Array.from({ length: 24 }, (_, i) => i + 1).map(day => {
                         const status = getBoxStatus(day);
-                        let bg = 'bg-red-700 opacity-50';
-                        if (status === 'available') bg = 'bg-green-500 hover:bg-green-600 cursor-pointer hover:scale-105 shadow-lg';
-                        if (status === 'opened') bg = 'bg-yellow-400 border-2 border-red-600 text-red-900';
+                        let bg = 'bg-red-800 opacity-60';
+                        let text = 'text-white';
+                        let interaction = '';
 
+                        if (status === 'available') {
+                            bg = 'bg-green-600 hover:bg-green-700 cursor-pointer hover:scale-105 shadow-xl border-4 border-yellow-300';
+                            interaction = 'transition-all duration-300 transform';
+                        }
+                        if (status === 'opened') {
+                            bg = 'bg-yellow-400 border-4 border-red-600';
+                            text = 'text-red-900';
+                        }
+                        if (status === 'locked') {
+                            bg = 'bg-red-900 opacity-70 cursor-not-allowed';
+                        }
+                        if (status === 'blocked') {
+                            bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
+                        }
+                        
                         return (
-                            <div key={day} onClick={() => handleBoxClick(day)} className={`${bg} p-4 rounded-lg h-24 flex items-center justify-center text-2xl font-bold text-white transition-all duration-200`}>
-                                {status === 'opened' ? '✓' : day}
+                            <div 
+                                key={day} 
+                                onClick={() => handleBoxClick(day)} 
+                                className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black`}>
+                                {status === 'opened' ? '🎵' : day}
                             </div>
                         );
                     })}
                 </div>
             </main>
-             <style>{`
-                @keyframes zoomIn {
-                    from { opacity: 0; transform: scale(0.5); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                .animate-zoomIn {
-                    animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-                }
-            `}</style>
+              <style>{`
+                 @keyframes zoomIn {
+                     from { opacity: 0; transform: scale(0.5); }
+                     to { opacity: 1; transform: scale(1); }
+                 }
+                 .animate-zoomIn {
+                     animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+                 }
+                 /* Stili per un bel font */
+                 body { font-family: 'Inter', sans-serif; }
+                 
+                 /* Stile personalizzato per SweetAlert2 in modo che sia sopra GameModal */
+                 .swal2-container--custom-z {
+                    z-index: 60; 
+                 }
+             `}</style>
         </div>
     );
 }
