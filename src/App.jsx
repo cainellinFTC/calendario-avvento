@@ -169,67 +169,29 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 
             // Calcola caselle veramente disponibili (non scadute, non bloccate, non già completate)
             const availableBoxes = [];
+            let totalPlayableBoxes = 0; // Caselle che sono disponibili O già aperte (esclude expired, locked, blocked)
+
             for (let day = 1; day <= 24; day++) {
-                if (getBoxStatus(day) === 'available') {
+                const status = getBoxStatus(day);
+                if (status === 'available') {
                     availableBoxes.push(day);
+                    totalPlayableBoxes++;
+                } else if (status === 'opened') {
+                    totalPlayableBoxes++;
                 }
             }
 
             const hasAvailableBoxes = availableBoxes.length > 0;
             const isDay24 = boxId === 24;
-            const allCompleted = Object.keys(updatedAttempts).length === Math.min(currentDay, 24);
+            // Tutte completate = hai completato tutte le caselle giocabili (escludendo expired/locked/blocked)
+            const allCompleted = Object.keys(updatedAttempts).length === totalPlayableBoxes;
 
             // Mostra SweetAlert di conferma personalizzato
             if (window.Swal) {
                 // Caso speciale: giorno 24 e tutte le caselle completate
+                // Non mostriamo più un popup modale, il banner apparirà automaticamente
                 if (isDay24 && allCompleted) {
-                    // Effetto neve
-                    const confettiScript = document.createElement('script');
-                    confettiScript.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-                    confettiScript.onload = () => {
-                        // Effetto fiocchi di neve
-                        const duration = 15 * 1000;
-                        const animationEnd = Date.now() + duration;
-                        const defaults = { startVelocity: 0, spread: 360, ticks: 60, zIndex: 9999 };
-
-                        function randomInRange(min, max) {
-                            return Math.random() * (max - min) + min;
-                        }
-
-                        const interval = setInterval(function() {
-                            const timeLeft = animationEnd - Date.now();
-
-                            if (timeLeft <= 0) {
-                                return clearInterval(interval);
-                            }
-
-                            const particleCount = 2;
-                            window.confetti({
-                                ...defaults,
-                                particleCount,
-                                origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 },
-                                colors: ['#ffffff', '#e0f7ff', '#b3e5fc'],
-                                shapes: ['circle'],
-                                scalar: randomInRange(0.4, 1),
-                                drift: randomInRange(-0.4, 0.4)
-                            });
-                        }, 50);
-                    };
-                    document.head.appendChild(confettiScript);
-
-                    window.Swal.fire({
-                        title: '🎄 Complimenti! 🎄',
-                        html: '<p style="font-size: 1.1em; line-height: 1.6;">Tra qualche giorno saprai se avrai vinto.<br>Per il momento <strong>Il Circolo</strong> ti augura un buon Natale!</p>',
-                        icon: 'success',
-                        iconColor: '#d32f2f',
-                        timer: 10000,
-                        timerProgressBar: true,
-                        showConfirmButton: true,
-                        confirmButtonText: 'Chiudi',
-                        confirmButtonColor: '#2e7d32',
-                        background: '#fff',
-                        backdrop: 'rgba(0,0,0,0.4)'
-                    });
+                    // Non mostrare nulla, il banner apparirà automaticamente
                 } else if (hasAvailableBoxes) {
                     // Ci sono caselle disponibili
                     window.Swal.fire({
@@ -435,6 +397,7 @@ export default function App() {
     const [leaderboard, setLeaderboard] = useState([]); // Top 3 per homepage
     const [fullLeaderboard, setFullLeaderboard] = useState([]); // Classifica completa
     const [showFullRanking, setShowFullRanking] = useState(false); // Toggle vista
+    const [showChristmasBanner, setShowChristmasBanner] = useState(false); // Banner natalizio fisso
     // RIMOSSO: Stato 'toast' non è più necessario
     
     // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
@@ -570,6 +533,94 @@ export default function App() {
         fetchAttempts();
     }, [session, supabaseClient, showToast]);
 
+    // 2b. Verifica se tutte le caselle sono completate (mostra popup natalizio se sì)
+    useEffect(() => {
+        // Se non c'è sessione o SweetAlert non è caricato, esci
+        if (!session || !window.Swal) return;
+
+        // Se non ci sono tentativi, non c'è nulla da controllare
+        if (Object.keys(attempts).length === 0) return;
+
+        // Funzione per calcolare lo stato di una casella
+        const getBoxStatus = (day) => {
+            if (today.getMonth() !== TEST_MONTH) return 'blocked';
+            if (attempts[day]) return 'opened';
+
+            const currentDay = today.getDate();
+            if (day > currentDay) return 'locked';
+
+            const minAvailableDay = Math.max(1, currentDay - MAX_PAST_DAYS + 1);
+            if (day < minAvailableDay) return 'expired';
+
+            return 'available';
+        };
+
+        // Conta caselle giocabili
+        let totalPlayableBoxes = 0;
+        for (let day = 1; day <= 24; day++) {
+            const status = getBoxStatus(day);
+            if (status === 'available' || status === 'opened') {
+                totalPlayableBoxes++;
+            }
+        }
+
+        const allCompleted = Object.keys(attempts).length === totalPlayableBoxes;
+        const currentDay = today.getDate();
+
+        // Se tutte completate e siamo al giorno 24 o oltre
+        if (allCompleted && currentDay >= 24) {
+            // Il banner si mostra solo nella vista calendario
+            if (!showFullRanking) {
+                setShowChristmasBanner(true);
+            }
+
+            // La neve invece continua sempre (sia in calendario che in classifica)
+            if (!window.confetti) {
+                const confettiScript = document.createElement('script');
+                confettiScript.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+                confettiScript.onload = () => {
+                    startChristmasSnow();
+                };
+                document.head.appendChild(confettiScript);
+            } else {
+                startChristmasSnow();
+            }
+        } else {
+            setShowChristmasBanner(false);
+            // Ferma la neve se non più necessaria
+            if (window.christmasSnowInterval) {
+                clearInterval(window.christmasSnowInterval);
+                window.christmasSnowInterval = null;
+            }
+        }
+
+        function startChristmasSnow() {
+            // Se la neve sta già cadendo, non riavviarla
+            if (window.christmasSnowInterval) return;
+
+            const defaults = { startVelocity: 0, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const snowInterval = setInterval(function() {
+                const particleCount = 2;
+                window.confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 },
+                    colors: ['#ffffff', '#e0f7ff', '#b3e5fc'],
+                    shapes: ['circle'],
+                    scalar: randomInRange(0.4, 1),
+                    drift: randomInRange(-0.4, 0.4)
+                });
+            }, 50);
+
+            window.christmasSnowInterval = snowInterval;
+        }
+    }, [attempts, session, showFullRanking]);
+
     // 3. Caricamento Classifica (da vista database)
     useEffect(() => {
         if (!supabaseClient) return;
@@ -664,6 +715,11 @@ export default function App() {
     };
 
     const handleBoxClick = (day) => {
+        // Se il banner natalizio è visibile, disabilita tutti i click
+        if (showChristmasBanner) {
+            return; // Non fare nulla, solo il banner visivo
+        }
+
         const status = getBoxStatus(day);
         if (status === 'available') setOpenBoxId(day);
         else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta');
@@ -733,6 +789,14 @@ export default function App() {
             if (error) throw error;
 
             setAttempts({});
+
+            // Nascondi il banner natalizio e ferma la neve
+            setShowChristmasBanner(false);
+            if (window.christmasSnowInterval) {
+                clearInterval(window.christmasSnowInterval);
+                window.christmasSnowInterval = null;
+            }
+
             showToast('DEBUG: Tutti i tentativi sono stati cancellati!', 'success', 'Debug Mode');
         } catch (error) {
             console.error('Errore debug:', error);
@@ -806,7 +870,17 @@ export default function App() {
                     <div className="flex items-center gap-4">
                         {RANKING_VIEW && (
                             <button
-                                onClick={() => setShowFullRanking(!showFullRanking)}
+                                onClick={() => {
+                                    const newShowFullRanking = !showFullRanking;
+                                    setShowFullRanking(newShowFullRanking);
+
+                                    // Nascondi solo il banner quando si va alla classifica (la neve continua)
+                                    if (newShowFullRanking) {
+                                        // Sta andando alla classifica - nascondi solo il banner
+                                        setShowChristmasBanner(false);
+                                    }
+                                    // Quando torna al calendario, l'useEffect ricontrolla automaticamente
+                                }}
                                 className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors shadow-md"
                             >
                                 {showFullRanking ? '📅 Torna al Calendario' : '🏆 Classifica Completa'}
@@ -841,6 +915,25 @@ export default function App() {
                     </div>
                 )}
             </header>
+
+            {/* Banner Natalizio Non Modale */}
+            {showChristmasBanner && (
+                <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl border-4 border-red-600 max-w-lg pointer-events-auto">
+                        <div className="text-center">
+                            <h2 className="text-4xl font-extrabold text-red-700 mb-4">🎄 Complimenti! 🎄</h2>
+                            <p className="text-lg text-gray-800 leading-relaxed">
+                                Tra qualche giorno saprai se avrai vinto.
+                                <br />
+                                Per il momento <strong className="text-red-600">Il Circolo</strong> ti augura un buon Natale!
+                            </p>
+                            <div className="mt-6 text-6xl animate-bounce">
+                                🎅🎁⛄
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <main className="container mx-auto p-4 py-8">
                 {showFullRanking ? (
@@ -925,25 +1018,37 @@ export default function App() {
                                     bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
                                 }
 
-                                // Immagini natalizie casuali
-                                const christmasIcons = ['🎄', '🎅', '⛄', '🎁', '🔔', '⭐', '🕯️', '🦌'];
-                                const randomIcon = christmasIcons[day % christmasIcons.length];
+                                // 24 Emoji natalizie diverse (una per ogni giorno)
+                                const christmasIcons = [
+                                    '🎄', '🎅', '⛄', '🎁', '🔔', '⭐', '🕯️', '🦌',
+                                    '🎀', '❄️', '🌟', '🎊', '🎉', '🧦', '🍪', '🥛',
+                                    '🎶', '🎵', '🏠', '🛷', '🤶', '👼', '🔥', '🌲'
+                                ];
+                                const iconForDay = christmasIcons[day - 1]; // Ogni giorno ha la sua icona unica
+
+                                // Posizioni casuali per il numero (4 angoli diversi)
+                                const cornerPositions = ['top-2 left-2', 'top-2 right-2', 'bottom-2 left-2', 'bottom-2 right-2'];
+                                const cornerIndex = (day * 7) % 4; // Calcolo deterministico ma varia tra i giorni
+                                const numberPosition = cornerPositions[cornerIndex];
+
+                                // Se il banner è visibile, disabilita visivamente le caselle
+                                const disabledClass = showChristmasBanner ? 'opacity-60 cursor-not-allowed' : '';
 
                                 return (
                                     <div
                                         key={day}
                                         onClick={() => handleBoxClick(day)}
-                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl aspect-square flex flex-col items-center justify-center text-2xl font-black relative overflow-hidden`}>
-                                        {/* Icona natalizia di sfondo */}
-                                        <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20">
-                                            {randomIcon}
+                                        className={`${bg} ${text} ${interaction} ${disabledClass} p-4 rounded-xl aspect-square flex items-center justify-center text-2xl font-black relative overflow-hidden`}>
+                                        {/* Icona natalizia di sfondo - ben visibile */}
+                                        <div className="absolute inset-0 flex items-center justify-center text-7xl">
+                                            {iconForDay}
                                         </div>
-                                        {/* Numero del giorno */}
-                                        <div className="relative z-10 text-3xl font-extrabold mb-1">
+                                        {/* Numero del giorno in angolo casuale */}
+                                        <div className={`absolute ${numberPosition} z-10 text-2xl font-extrabold bg-black bg-opacity-60 px-2 py-1 rounded-lg`}>
                                             {status === 'opened' ? '🎵' : day}
                                         </div>
                                         {status === 'expired' && (
-                                            <span className="absolute top-2 right-2 text-xs">⏰</span>
+                                            <span className="absolute top-1 right-1 text-base z-20">⏰</span>
                                         )}
                                     </div>
                                 );
