@@ -15,6 +15,7 @@ const SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 const TEST_MONTH = 11; // 11 = Dicembre
 const TEST_DAY = 24; // Imposta a 24 per testare il giorno 24, null per usare la data reale
 const DEBUG_MODE = true; // Abilita funzioni di debug (pulsante per completare tutte le caselle)
+const RANKING_VIEW = true; // Abilita la visualizzazione della classifica completa
 
 const songData = {
     1: { correctId: 2, titles: { 1: "Jingle Bells", 2: "All I Want For Christmas Is You", 3: "Silent Night (Remix)" } },
@@ -26,7 +27,7 @@ const songData = {
     7: { correctId: 2, titles: { 1: "Run Rudolph Run", 2: "Do They Know It's Christmas?", 3: "Auld Lang Syne" } },
     8: { correctId: 3, titles: { 1: "Jingle Bell Rock", 2: "Hark! The Herald Angels Sing", 3: "Frosty the Snowman" } },
     9: { correctId: 1, titles: { 1: "Here Comes Santa Claus", 2: "O Holy Night", 3: "Joy to the World" } },
-    10: { correctId: 2, titles: { 1: "The Twelve Days of Christmas", 2: "Wonderful Christmastime", 3: "The Little Drummer Boy" } },
+    10: { correctId: 2, titles: { 1: "The Twelve Days  of Christmas", 2: "Wonderful Christmastime", 3: "The Little Drummer Boy" } },
     11: { correctId: 3, titles: { 1: "It's the Most Wonderful Time of the Year", 2: "Grown-Up Christmas List", 3: "Holly Jolly Christmas" } },
     12: { correctId: 1, titles: { 1: "Baby, It's Cold Outside", 2: "Christmas (Baby Please Come Home)", 3: "Zat You Santa Claus?" } },
     13: { correctId: 2, titles: { 1: "I Saw Mommy Kissing Santa Claus", 2: "Happy Xmas (War Is Over)", 3: "What Christmas Means to Me" } },
@@ -415,7 +416,9 @@ export default function App() {
     const [attempts, setAttempts] = useState({});
     const [openBoxId, setOpenBoxId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
-    const [leaderboard, setLeaderboard] = useState([]);
+    const [leaderboard, setLeaderboard] = useState([]); // Top 3 per homepage
+    const [fullLeaderboard, setFullLeaderboard] = useState([]); // Classifica completa
+    const [showFullRanking, setShowFullRanking] = useState(false); // Toggle vista
     // RIMOSSO: Stato 'toast' non è più necessario
     
     // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
@@ -557,25 +560,34 @@ export default function App() {
 
         const fetchLeaderboard = async () => {
             try {
-                // Legge dalla vista 'leaderboard_view' che deve essere creata nel database
-                const { data, error } = await supabaseClient
+                // Carica TOP 3 per homepage
+                const { data: top3Data, error: top3Error } = await supabaseClient
                     .from('leaderboard_view')
                     .select('*')
                     .order('correct_answers', { ascending: false })
                     .order('total_time', { ascending: true })
                     .limit(3);
 
-                if (error) {
-                    console.error('Errore caricamento classifica:', error);
-                    // Se la vista non esiste, mostra un messaggio in console
-                    if (error.message.includes('does not exist')) {
+                if (top3Error) {
+                    console.error('Errore caricamento top 3:', top3Error);
+                    if (top3Error.message.includes('does not exist')) {
                         console.warn('La vista "leaderboard_view" non esiste. Crearla nel database Supabase.');
                     }
-                    return;
+                } else if (top3Data) {
+                    setLeaderboard(top3Data);
                 }
 
-                if (data) {
-                    setLeaderboard(data);
+                // Carica CLASSIFICA COMPLETA (solo se RANKING_VIEW è abilitato)
+                if (RANKING_VIEW) {
+                    const { data: fullData, error: fullError } = await supabaseClient
+                        .from('leaderboard_view')
+                        .select('*')
+                        .order('correct_answers', { ascending: false })
+                        .order('total_time', { ascending: true });
+
+                    if (!fullError && fullData) {
+                        setFullLeaderboard(fullData);
+                    }
                 }
             } catch (error) {
                 console.error('Errore caricamento classifica:', error);
@@ -744,11 +756,21 @@ export default function App() {
             <header className="bg-black bg-opacity-70 text-white p-4 shadow-lg">
                 <div className="flex justify-between items-center">
                     <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
-                    <div className="text-right">
-                        <p className="text-sm font-semibold">
-                            {session.user.user_metadata?.display_name || session.user.email}
-                        </p>
-                        <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
+                    <div className="flex items-center gap-4">
+                        {RANKING_VIEW && (
+                            <button
+                                onClick={() => setShowFullRanking(!showFullRanking)}
+                                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition-colors shadow-md"
+                            >
+                                {showFullRanking ? '📅 Torna al Calendario' : '🏆 Classifica Completa'}
+                            </button>
+                        )}
+                        <div className="text-right">
+                            <p className="text-sm font-semibold">
+                                {session.user.user_metadata?.display_name || session.user.email}
+                            </p>
+                            <button onClick={() => supabaseClient.auth.signOut()} className="text-sm text-red-400 hover:text-red-300 underline transition-colors">Logout</button>
+                        </div>
                     </div>
                 </div>
                 {DEBUG_MODE && (
@@ -774,81 +796,95 @@ export default function App() {
             </header>
 
             <main className="container mx-auto p-4 py-8">
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
-                    {Array.from({ length: 24 }, (_, i) => i + 1).map(day => {
-                        const status = getBoxStatus(day);
-                        let bg = 'bg-red-800 opacity-60';
-                        let text = 'text-white';
-                        let interaction = '';
-
-                        if (status === 'available') {
-                            bg = 'bg-green-600 hover:bg-green-700 cursor-pointer hover:scale-105 shadow-xl border-4 border-yellow-300';
-                            interaction = 'transition-all duration-300 transform';
-                        }
-                        if (status === 'opened') {
-                            bg = 'bg-yellow-400 border-4 border-red-600';
-                            text = 'text-red-900';
-                        }
-                        if (status === 'locked') {
-                            bg = 'bg-red-900 opacity-70 cursor-not-allowed';
-                        }
-                        if (status === 'blocked') {
-                            bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
-                        }
-                        
-                        return (
-                            <div 
-                                key={day} 
-                                onClick={() => handleBoxClick(day)} 
-                                className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black`}>
-                                {status === 'opened' ? '🎵' : day}
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Classifica */}
-                {leaderboard.length > 0 && (
-                    <div className="mt-8 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
-                        <h2 className="text-2xl font-extrabold text-center text-red-700 mb-6 border-b-2 border-red-300 pb-3">
-                            🏆 Classifica Top 3
+                {showFullRanking ? (
+                    /* VISTA CLASSIFICA COMPLETA */
+                    <div className="bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
+                        <h2 className="text-3xl font-extrabold text-center text-red-700 mb-8 border-b-2 border-red-300 pb-4">
+                            🏆 Classifica Completa
                         </h2>
-                        <div className="space-y-4">
-                            {leaderboard.map((player, index) => {
-                                const medals = ['🥇', '🥈', '🥉'];
-                                const bgColors = [
-                                    'bg-gradient-to-r from-yellow-100 to-yellow-50 border-yellow-400',
-                                    'bg-gradient-to-r from-gray-100 to-gray-50 border-gray-400',
-                                    'bg-gradient-to-r from-orange-100 to-orange-50 border-orange-400'
-                                ];
+                        {fullLeaderboard.length > 0 ? (
+                            <div className="space-y-3">
+                                {fullLeaderboard.map((player, index) => {
+                                    const isTop3 = index < 3;
+                                    const medals = ['🥇', '🥈', '🥉'];
+                                    const position = index + 1;
+
+                                    return (
+                                        <div
+                                            key={player.user_id}
+                                            className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                                                isTop3
+                                                    ? 'bg-gradient-to-r from-yellow-50 to-white border-yellow-400 shadow-md'
+                                                    : 'bg-white border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 text-center">
+                                                    {isTop3 ? (
+                                                        <span className="text-3xl">{medals[index]}</span>
+                                                    ) : (
+                                                        <span className="text-xl font-bold text-gray-500">#{position}</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className={`font-bold ${isTop3 ? 'text-lg' : 'text-base'} text-gray-800`}>
+                                                        {player.display_name}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {player.correct_answers} risposte corrette
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`font-bold ${isTop3 ? 'text-xl text-red-600' : 'text-lg text-gray-700'}`}>
+                                                    {Math.floor(player.total_time / 60)}:{(player.total_time % 60).toString().padStart(2, '0')}
+                                                </p>
+                                                <p className="text-xs text-gray-500">tempo totale</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500 py-8">Nessun partecipante ancora...</p>
+                        )}
+                    </div>
+                ) : (
+                    /* VISTA CALENDARIO */
+                    <>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
+                            {Array.from({ length: 24 }, (_, i) => i + 1).map(day => {
+                                const status = getBoxStatus(day);
+                                let bg = 'bg-red-800 opacity-60';
+                                let text = 'text-white';
+                                let interaction = '';
+
+                                if (status === 'available') {
+                                    bg = 'bg-green-600 hover:bg-green-700 cursor-pointer hover:scale-105 shadow-xl border-4 border-yellow-300';
+                                    interaction = 'transition-all duration-300 transform';
+                                }
+                                if (status === 'opened') {
+                                    bg = 'bg-yellow-400 border-4 border-red-600';
+                                    text = 'text-red-900';
+                                }
+                                if (status === 'locked') {
+                                    bg = 'bg-red-900 opacity-70 cursor-not-allowed';
+                                }
+                                if (status === 'blocked') {
+                                    bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
+                                }
 
                                 return (
                                     <div
-                                        key={player.user_id}
-                                        className={`flex items-center justify-between p-4 rounded-xl border-2 ${bgColors[index]} shadow-md`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-4xl">{medals[index]}</span>
-                                            <div>
-                                                <p className="font-bold text-lg text-gray-800">
-                                                    {player.display_name}
-                                                </p>
-                                                <p className="text-sm text-gray-600">
-                                                    {player.correct_answers} risposte corrette
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold text-xl text-red-600">
-                                                {Math.floor(player.total_time / 60)}:{(player.total_time % 60).toString().padStart(2, '0')}
-                                            </p>
-                                            <p className="text-xs text-gray-500">tempo totale</p>
-                                        </div>
+                                        key={day}
+                                        onClick={() => handleBoxClick(day)}
+                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black`}>
+                                        {status === 'opened' ? '🎵' : day}
                                     </div>
                                 );
                             })}
                         </div>
-                    </div>
+                    </>
                 )}
             </main>
               <style>{`
