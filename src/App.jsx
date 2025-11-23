@@ -14,6 +14,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Configurazione calendario e funzionalità
 const TEST_MONTH = parseInt(import.meta.env.VITE_TEST_MONTH) || 11; // 11 = Dicembre
 const TEST_DAY = import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
+const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) || 3; // Giorni disponibili nel passato
 const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
 
@@ -58,7 +59,7 @@ const shuffleArray = (array) => {
 
 // RIMOSSO: Il componente ToastMessage non è più necessario.
 
-const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast, currentAttempts, currentDay }) => {
+const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast, currentAttempts, currentDay, today, maxPastDays, testMonth }) => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [timerRunning, setTimerRunning] = useState(false);
     const [timeElapsed, setTimeElapsed] = useState(0);
@@ -153,12 +154,27 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 
             // Calcola lo stato delle caselle dopo questo tentativo
             const updatedAttempts = {...currentAttempts, [boxId]: true};
+
+            // Funzione per calcolare lo stato di una casella (stessa logica di getBoxStatus nel parent)
+            const getBoxStatus = (day) => {
+                if (today.getMonth() !== testMonth) return 'blocked';
+                if (updatedAttempts[day]) return 'opened';
+                if (day > currentDay) return 'locked';
+
+                const minAvailableDay = Math.max(1, currentDay - maxPastDays + 1);
+                if (day < minAvailableDay) return 'expired';
+
+                return 'available';
+            };
+
+            // Calcola caselle veramente disponibili (non scadute, non bloccate, non già completate)
             const availableBoxes = [];
-            for (let day = 1; day <= currentDay && day <= 24; day++) {
-                if (!updatedAttempts[day]) {
+            for (let day = 1; day <= 24; day++) {
+                if (getBoxStatus(day) === 'available') {
                     availableBoxes.push(day);
                 }
             }
+
             const hasAvailableBoxes = availableBoxes.length > 0;
             const isDay24 = boxId === 24;
             const allCompleted = Object.keys(updatedAttempts).length === Math.min(currentDay, 24);
@@ -613,19 +629,30 @@ export default function App() {
 
     const getBoxStatus = (day) => {
         if (today.getMonth() !== TEST_MONTH) return 'blocked'; // Se il mese è sbagliato, blocca
-        if (attempts[day]) return 'opened';
-        if (day <= today.getDate()) return 'available';
-        return 'locked';
+        if (attempts[day]) return 'opened'; // Già completato
+
+        const currentDay = today.getDate();
+
+        // Giorno futuro - bloccato
+        if (day > currentDay) return 'locked';
+
+        // Calcola il giorno minimo disponibile (ultimi MAX_PAST_DAYS giorni)
+        const minAvailableDay = Math.max(1, currentDay - MAX_PAST_DAYS + 1);
+
+        // Se il giorno è troppo vecchio, è scaduto
+        if (day < minAvailableDay) return 'expired';
+
+        // Giorno disponibile (oggi o negli ultimi MAX_PAST_DAYS giorni)
+        return 'available';
     };
 
     const handleBoxClick = (day) => {
         const status = getBoxStatus(day);
         if (status === 'available') setOpenBoxId(day);
-        // MODIFICATA: Aggiornate le chiamate a showToast
         else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta');
         else if (status === 'locked') showToast("Non puoi aprire questa casella in anticipo!", 'info', 'Ancora Bloccata');
-        else showToast("Il Calendario è attivo solo a Dicembre (o nel mese di test).", 'error', 'Mese Sbagliato');
-        // FINE MODIFICATA
+        else if (status === 'expired') showToast(`Il Giorno ${day} è scaduto! Puoi giocare solo gli ultimi ${MAX_PAST_DAYS} giorni.`, 'warning', 'Casella Scaduta');
+        else if (status === 'blocked') showToast("Il Calendario è attivo solo a Dicembre (o nel mese di test).", 'error', 'Mese Sbagliato');
     };
 
     // --- FUNZIONI DI DEBUG ---
@@ -747,6 +774,9 @@ export default function App() {
                     showToast={showToast}
                     currentAttempts={attempts}
                     currentDay={today.getDate()}
+                    today={today}
+                    maxPastDays={MAX_PAST_DAYS}
+                    testMonth={TEST_MONTH}
                 />
             )}
 
@@ -870,6 +900,10 @@ export default function App() {
                                 if (status === 'locked') {
                                     bg = 'bg-red-900 opacity-70 cursor-not-allowed';
                                 }
+                                if (status === 'expired') {
+                                    bg = 'bg-gray-700 opacity-40 cursor-not-allowed line-through';
+                                    text = 'text-gray-400';
+                                }
                                 if (status === 'blocked') {
                                     bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
                                 }
@@ -878,8 +912,11 @@ export default function App() {
                                     <div
                                         key={day}
                                         onClick={() => handleBoxClick(day)}
-                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black`}>
+                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black relative`}>
                                         {status === 'opened' ? '🎵' : day}
+                                        {status === 'expired' && (
+                                            <span className="absolute top-1 right-1 text-xs">⏰</span>
+                                        )}
                                     </div>
                                 );
                             })}
