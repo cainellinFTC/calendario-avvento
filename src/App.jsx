@@ -6,16 +6,16 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 // La riga 'import { createClient } from '@supabase/supabase-js';' è stata rimossa
 // perché causava un errore di risoluzione nell'ambiente di esecuzione.
 
-// --- CONFIGURAZIONE SUPABASE (DEVI MODIFICARE QUESTI VALORI) ---
-// Rimuovi questo commento dopo aver configurato le tue chiavi.
-const SUPABASE_URL ="https://jpfejnxrxhzieqsnblui.supabase.co"; 
-const SUPABASE_ANON_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZmVqbnhyeGh6aWVxc25ibHVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NDUyODIsImV4cCI6MjA3OTMyMTI4Mn0.hhz6gTQxbakpIfaZGjtxfnrpbZ4P4SLFjOCP2bwbAJo";
+// --- CONFIGURAZIONE DA VARIABILI D'AMBIENTE ---
+// Tutte le configurazioni sono gestite nel file .env
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// --- DATI E CONFIGURAZIONE ---
-const TEST_MONTH = 11; // 11 = Dicembre
-const TEST_DAY = 24; // Imposta a 24 per testare il giorno 24, null per usare la data reale
-const DEBUG_MODE = true; // Abilita funzioni di debug (pulsante per completare tutte le caselle)
-const RANKING_VIEW = true; // Abilita la visualizzazione della classifica completa
+// Configurazione calendario e funzionalità
+const TEST_MONTH = parseInt(import.meta.env.VITE_TEST_MONTH) || 11; // 11 = Dicembre
+const TEST_DAY = import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
+const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
+const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
 
 const songData = {
     1: { correctId: 2, titles: { 1: "Jingle Bells", 2: "All I Want For Christmas Is You", 3: "Silent Night (Remix)" } },
