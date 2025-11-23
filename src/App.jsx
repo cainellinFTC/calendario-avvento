@@ -627,6 +627,23 @@ export default function App() {
         return d;
     }, []);
 
+    // Array dei giorni in ordine casuale (ma sempre lo stesso ordine)
+    const shuffledDays = useMemo(() => {
+        const days = Array.from({ length: 24 }, (_, i) => i + 1);
+        // Shuffle con algoritmo Fisher-Yates usando un seed fisso per consistenza
+        const shuffled = [...days];
+        let seed = 12345; // Seed fisso per avere sempre lo stesso ordine
+        const random = () => {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        };
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }, []);
+
     const getBoxStatus = (day) => {
         if (today.getMonth() !== TEST_MONTH) return 'blocked'; // Se il mese è sbagliato, blocca
         if (attempts[day]) return 'opened'; // Già completato
@@ -882,8 +899,8 @@ export default function App() {
                 ) : (
                     /* VISTA CALENDARIO */
                     <>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl">
-                            {Array.from({ length: 24 }, (_, i) => i + 1).map(day => {
+                        <div className="grid grid-cols-4 gap-4 bg-white bg-opacity-90 p-6 rounded-2xl shadow-2xl max-w-2xl mx-auto">
+                            {shuffledDays.map(day => {
                                 const status = getBoxStatus(day);
                                 let bg = 'bg-red-800 opacity-60';
                                 let text = 'text-white';
@@ -908,14 +925,25 @@ export default function App() {
                                     bg = 'bg-gray-500 opacity-50 cursor-not-allowed';
                                 }
 
+                                // Immagini natalizie casuali
+                                const christmasIcons = ['🎄', '🎅', '⛄', '🎁', '🔔', '⭐', '🕯️', '🦌'];
+                                const randomIcon = christmasIcons[day % christmasIcons.length];
+
                                 return (
                                     <div
                                         key={day}
                                         onClick={() => handleBoxClick(day)}
-                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl h-24 flex items-center justify-center text-2xl font-black relative`}>
-                                        {status === 'opened' ? '🎵' : day}
+                                        className={`${bg} ${text} ${interaction} p-4 rounded-xl aspect-square flex flex-col items-center justify-center text-2xl font-black relative overflow-hidden`}>
+                                        {/* Icona natalizia di sfondo */}
+                                        <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20">
+                                            {randomIcon}
+                                        </div>
+                                        {/* Numero del giorno */}
+                                        <div className="relative z-10 text-3xl font-extrabold mb-1">
+                                            {status === 'opened' ? '🎵' : day}
+                                        </div>
                                         {status === 'expired' && (
-                                            <span className="absolute top-1 right-1 text-xs">⏰</span>
+                                            <span className="absolute top-2 right-2 text-xs">⏰</span>
                                         )}
                                     </div>
                                 );
