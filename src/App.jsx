@@ -1047,7 +1047,7 @@ export default function App() {
     // 3. Applicazione Principale
     return (
         <div className="min-h-screen font-sans" style={{
-            backgroundImage: 'url(/sfondo-natale.jpg)',
+            backgroundImage: 'url(/img/sfondo-natale.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundAttachment: 'fixed'
@@ -1074,9 +1074,10 @@ export default function App() {
             {/* {toast && <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast(null)} />} */}
 
             <header className="bg-black bg-opacity-70 text-white p-4 shadow-lg">
-                <div className="flex justify-between items-center">
-                    <h1 className="font-extrabold text-2xl text-yellow-400">🎶 Calendario Avvento Musicale</h1>
-                    <div className="flex items-center gap-4">
+                <div className="grid grid-cols-3 items-center">
+                    <div></div>
+                    <h1 className="font-extrabold text-2xl text-yellow-400 text-center">🎶 Calendario dell'Avvento Musicale 🎶</h1>
+                    <div className="flex items-center gap-4 justify-end">
                         {RANKING_VIEW && (
                             <button
                                 onClick={() => {
@@ -1263,6 +1264,11 @@ export default function App() {
                                 );
                             })}
                         </div>
+
+                        {/* Footer con Logo */}
+                        <footer className="py-8 flex justify-center">
+                            <img src="/img/Logo_CRCT.png" alt="Logo Circolo FTC" className="h-20 w-auto" />
+                        </footer>
                     </>
                 )}
             </main>

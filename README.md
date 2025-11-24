@@ -121,3 +121,8 @@ Inserisci i file MP3 in `public/audio/` con naming:
 - Dopo modifiche al `.env` è necessario riavviare il server dev
 - Le chiavi Supabase nel `.env` NON devono essere committate su Git
 - Il file `.env` è già in `.gitignore`
+
+
+## Note di miglioramenti
+
+- mostrare nella classifica tutti i partecipanti anche se non hanno risposte corrette
