@@ -316,6 +316,7 @@ const AuthScreen = ({ supabaseClient }) => {
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
 
     const handleAuth = async (e) => {
         e.preventDefault();
@@ -357,12 +358,38 @@ const AuthScreen = ({ supabaseClient }) => {
         }
     };
 
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMsg('');
+
+        try {
+            if (!supabaseClient) throw new Error("Supabase non configurato.");
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/#reset-password` // URL specifico per reset
+            });
+
+            if (error) throw error;
+
+            setMsg('✅ Email di reset password inviata! Controlla la tua casella di posta.');
+            setIsForgotPassword(false);
+        } catch (error) {
+            setMsg('Errore: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm border-4 border-green-500">
-                <h2 className="text-3xl font-extrabold mb-6 text-red-600 text-center">{isRegistering ? '🎄 Registrati' : '🎅 Accedi'}</h2>
-                <form onSubmit={handleAuth} className="space-y-4">
-                    {isRegistering && (
+                <h2 className="text-3xl font-extrabold mb-6 text-red-600 text-center">
+                    {isForgotPassword ? '🔑 Reset Password' : (isRegistering ? '🎄 Registrati' : '🎅 Accedi')}
+                </h2>
+
+                <form onSubmit={isForgotPassword ? handleForgotPassword : handleAuth} className="space-y-4">
+                    {isRegistering && !isForgotPassword && (
                         <input
                             type="text"
                             placeholder="Nickname"
@@ -372,16 +399,64 @@ const AuthScreen = ({ supabaseClient }) => {
                             required
                         />
                     )}
-                    <input type="email" placeholder="Email" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={email} onChange={e=>setEmail(e.target.value)} required />
-                    <input type="password" placeholder="Password" className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500" value={password} onChange={e=>setPassword(e.target.value)} required />
-                    <button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md">
-                        {loading ? 'Attendi...' : (isRegistering ? 'Crea Account' : 'Accedi al Calendario')}
+                    <input
+                        type="email"
+                        placeholder="Email"
+                        className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500"
+                        value={email}
+                        onChange={e=>setEmail(e.target.value)}
+                        required
+                    />
+                    {!isForgotPassword && (
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500"
+                            value={password}
+                            onChange={e=>setPassword(e.target.value)}
+                            required
+                        />
+                    )}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md"
+                    >
+                        {loading ? 'Attendi...' : (isForgotPassword ? 'Invia Email Reset' : (isRegistering ? 'Crea Account' : 'Accedi al Calendario'))}
                     </button>
                 </form>
+
                 {msg && <p className="mt-4 text-sm text-center text-red-700 font-medium bg-red-50 p-2 rounded">{msg}</p>}
-                <button onClick={()=>setIsRegistering(!isRegistering)} className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors">
-                    {isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati ora'}
-                </button>
+
+                {/* Link per password dimenticata */}
+                {!isRegistering && !isForgotPassword && (
+                    <button
+                        onClick={() => setIsForgotPassword(true)}
+                        className="mt-3 w-full text-xs text-blue-600 hover:text-blue-800 underline transition-colors"
+                    >
+                        Password dimenticata?
+                    </button>
+                )}
+
+                {/* Toggle tra Login/Registrazione/Reset */}
+                {!isForgotPassword ? (
+                    <button
+                        onClick={() => setIsRegistering(!isRegistering)}
+                        className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors"
+                    >
+                        {isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati ora'}
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => {
+                            setIsForgotPassword(false);
+                            setMsg('');
+                        }}
+                        className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors"
+                    >
+                        ← Torna al Login
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -398,6 +473,8 @@ export default function App() {
     const [fullLeaderboard, setFullLeaderboard] = useState([]); // Classifica completa
     const [showFullRanking, setShowFullRanking] = useState(false); // Toggle vista
     const [showChristmasBanner, setShowChristmasBanner] = useState(false); // Banner natalizio fisso
+    const [showPasswordReset, setShowPasswordReset] = useState(false); // Modal per reset password
+    const [newPassword, setNewPassword] = useState('');
     // RIMOSSO: Stato 'toast' non è più necessario
     
     // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
@@ -491,17 +568,54 @@ export default function App() {
     // 1. Gestione Sessione Utente (dipende da supabaseClient)
     useEffect(() => {
         if (!supabaseClient) return;
-        
+
+        // Controlla se l'URL contiene token di reset password (dopo il redirect di Supabase)
+        let hashFragment = window.location.hash.substring(1); // Rimuovi il primo #
+
+        // Supabase potrebbe aggiungere i parametri dopo il nostro hash (es: reset-password#access_token=...)
+        // Dobbiamo rimuovere tutto prima del secondo # se presente
+        if (hashFragment.includes('#')) {
+            // Prendi solo la parte dopo il secondo #
+            hashFragment = hashFragment.split('#')[1];
+        }
+
+        const hashParams = new URLSearchParams(hashFragment);
+        const accessToken = hashParams.get('access_token');
+        const type = hashParams.get('type');
+
+        console.log('Hash completo:', window.location.hash);
+        console.log('Fragment pulito:', hashFragment);
+        console.log('Access token:', accessToken ? 'PRESENTE' : 'null');
+        console.log('Type:', type);
+
+        // Se è un link di recovery, NON caricare la sessione automaticamente
+        if (type === 'recovery' && accessToken) {
+            console.log('✅ Rilevato link di recovery - mostro schermata reset password');
+            setShowPasswordReset(true);
+            // NON chiamare getSession() e NON impostare la subscription
+            return;
+        }
+
+        // Solo se NON è un recovery, carica la sessione normale
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
         });
 
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state change event:', event);
+
+            // Intercetta l'evento PASSWORD_RECOVERY
+            if (event === 'PASSWORD_RECOVERY') {
+                setShowPasswordReset(true);
+                // Impedisci il login automatico
+                return;
+            }
+
             setSession(session);
-            if (session) {
+            if (session && event === 'SIGNED_IN') {
                 // MODIFICATA: Aggiunto un titolo all'alert di successo
                 showToast(`Benvenuto, ${session.user.email}!`, 'success', 'Accesso Riuscito');
-            } else {
+            } else if (!session && event === 'SIGNED_OUT') {
                 showToast("Sei stato disconnesso.", 'info', 'Logout');
             }
         });
@@ -804,6 +918,58 @@ export default function App() {
         }
     };
 
+    // --- FUNZIONE RESET PASSWORD ---
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+
+        if (!newPassword || newPassword.length < 6) {
+            showToast('La password deve essere di almeno 6 caratteri', 'error');
+            return;
+        }
+
+        try {
+            // Prima imposta la sessione dal token nell'URL
+            let hashFragment = window.location.hash.substring(1);
+
+            // Gestisci il doppio hash (reset-password#access_token=...)
+            if (hashFragment.includes('#')) {
+                hashFragment = hashFragment.split('#')[1];
+            }
+
+            const hashParams = new URLSearchParams(hashFragment);
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+
+            console.log('Updating password - access token:', accessToken ? 'PRESENTE' : 'null');
+
+            if (accessToken && refreshToken) {
+                await supabaseClient.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
+            }
+
+            // Poi aggiorna la password
+            const { error } = await supabaseClient.auth.updateUser({
+                password: newPassword
+            });
+
+            if (error) throw error;
+
+            showToast('Password aggiornata con successo!', 'success');
+            setShowPasswordReset(false);
+            setNewPassword('');
+
+            // Pulisci l'URL dai token
+            window.location.hash = '';
+
+            // Logout per far rifare il login con la nuova password
+            await supabaseClient.auth.signOut();
+        } catch (error) {
+            showToast('Errore: ' + error.message, 'error');
+        }
+    };
+
     // --- LOGICHE DI RENDERING CONDIZIONALE ---
     
     // 0. Schermata di attesa caricamento libreria 
@@ -832,7 +998,50 @@ export default function App() {
         );
     }
 
-    // 2. Schermata di Autenticazione
+    // 2. Modal Reset Password (PRIORITÀ - blocca l'accesso finché non si cambia la password)
+    if (showPasswordReset) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border-4 border-yellow-500">
+                    <h2 className="text-3xl font-extrabold text-red-700 mb-4 text-center">🔑 Nuova Password Richiesta</h2>
+                    <p className="text-gray-700 mb-6 text-center">
+                        Devi impostare una nuova password per accedere all'applicazione.
+                    </p>
+
+                    <form onSubmit={handleUpdatePassword} className="space-y-4">
+                        <input
+                            type="password"
+                            placeholder="Nuova Password (min 6 caratteri)"
+                            className="w-full border-2 border-gray-300 p-3 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            autoFocus
+                        />
+                        <button
+                            type="submit"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md"
+                        >
+                            ✅ Aggiorna Password e Accedi
+                        </button>
+                    </form>
+
+                    <button
+                        onClick={async () => {
+                            await supabaseClient.auth.signOut();
+                            setShowPasswordReset(false);
+                        }}
+                        className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors"
+                    >
+                        Annulla e Torna al Login
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // 2b. Schermata di Autenticazione
     if (!session) return <AuthScreen supabaseClient={supabaseClient} />;
 
     // 3. Applicazione Principale
