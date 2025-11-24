@@ -1047,7 +1047,7 @@ export default function App() {
     // 3. Applicazione Principale
     return (
         <div className="min-h-screen font-sans" style={{
-            backgroundImage: 'url(https://placehold.co/1200x800/1E392A/ffffff?text=Calendario+Avvento+Musical)', 
+            backgroundImage: 'url(/sfondo-natale.jpg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundAttachment: 'fixed'
