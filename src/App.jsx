@@ -477,6 +477,8 @@ export default function App() {
     const [showChristmasBanner, setShowChristmasBanner] = useState(false); // Banner natalizio fisso
     const [showPasswordReset, setShowPasswordReset] = useState(false); // Modal per reset password
     const [newPassword, setNewPassword] = useState('');
+    const [showInstructions, setShowInstructions] = useState(false); // Modal istruzioni
+    const [instructionsContent, setInstructionsContent] = useState(''); // Contenuto markdown
     // RIMOSSO: Stato 'toast' non è più necessario
     
     // ** MODIFICATA: La funzione ora utilizza SweetAlert2 (Swal.fire) **
@@ -844,6 +846,19 @@ export default function App() {
         else if (status === 'blocked') showToast("Il Calendario è attivo solo a Dicembre (o nel mese di test).", 'error', 'Mese Sbagliato');
     };
 
+    // --- FUNZIONE CARICAMENTO ISTRUZIONI ---
+    const handleShowInstructions = async () => {
+        try {
+            const response = await fetch('/istruzioni.md');
+            const text = await response.text();
+            setInstructionsContent(text);
+            setShowInstructions(true);
+        } catch (error) {
+            console.error('Errore caricamento istruzioni:', error);
+            showToast('Errore nel caricamento delle istruzioni', 'error');
+        }
+    };
+
     // --- FUNZIONI DI DEBUG ---
     const handleDebugCompleteAll = async () => {
         if (!DEBUG_MODE || !supabaseClient || !session) return;
@@ -1072,6 +1087,46 @@ export default function App() {
                 />
             )}
 
+            {/* Modal Istruzioni */}
+            {showInstructions && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-3xl my-8 border-4 border-blue-500 animate-zoomIn">
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 className="text-3xl font-extrabold text-blue-700">📖 Modalità di Gioco</h2>
+                            <button
+                                onClick={() => setShowInstructions(false)}
+                                className="text-3xl text-gray-500 hover:text-red-600 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="prose prose-sm max-w-none overflow-y-auto max-h-96">
+                            <div
+                                className="markdown-content text-gray-800 leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: instructionsContent
+                                    .replace(/\n/g, '<br/>')
+                                    .replace(/##\s⚠️\sIMPORTANTE\s⚠️/g, '<h3 class="font-extrabold text-xl mt-6 mb-3 text-red-600 bg-yellow-100 p-3 rounded-lg border-2 border-red-500 text-center animate-pulse">⚠️ IMPORTANTE ⚠️</h3>')
+                                    .replace(/\*\*🏆\sS([^*]+)\*\*/g, '<p class="font-extrabold text-lg text-red-700 bg-yellow-50 p-4 rounded-lg border-l-4 border-red-600 text-center my-2">🏆 S$1</p>')
+                                    .replace(/###\s🎄\sBuon\sdivertimento([^<]+)/g, '<h3 class="font-bold text-xl mt-6 mb-3 text-green-700 bg-green-50 p-3 rounded-lg border-2 border-green-400 text-center">🎄 Buon divertimento$1</h3>')
+                                    .replace(/!\[([^\]]+)\]\(([^)]+)\)/g, '<div class="flex justify-center my-4"><img src="$2" alt="$1" class="h-24 w-auto" /></div>')
+                                    .replace(/#{1,6}\s(.+)/g, '<h3 class="font-bold text-lg mt-4 mb-2 text-blue-700">$1</h3>')
+                                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                                    .replace(/###\s(.+)/g, '<h4 class="font-semibold text-base mt-3 mb-1 text-blue-600">$1</h4>')
+                                }}
+                            />
+                        </div>
+                        <div className="mt-6 pt-4 border-t">
+                            <button
+                                onClick={() => setShowInstructions(false)}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-bold transition-colors shadow-md"
+                            >
+                                ✓ Ho Capito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* RIMOSSO: Il rendering del componente Toast non è più qui */}
             {/* {toast && <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast(null)} />} */}
 
@@ -1080,6 +1135,12 @@ export default function App() {
                     <div></div>
                     <h1 className="font-extrabold text-2xl text-yellow-400 text-center">🎶 Calendario dell'Avvento Musicale 🎶</h1>
                     <div className="flex items-center gap-4 justify-end">
+                        <button
+                            onClick={handleShowInstructions}
+                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-colors shadow-md"
+                        >
+                            ℹ️ Istruzioni
+                        </button>
                         {RANKING_VIEW && (
                             <button
                                 onClick={() => {
