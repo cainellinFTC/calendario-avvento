@@ -392,7 +392,7 @@ const AuthScreen = ({ supabaseClient }) => {
                     {isRegistering && !isForgotPassword && (
                         <input
                             type="text"
-                            placeholder="Nickname"
+                            placeholder="Nome e Cognome"
                             className="w-full border p-3 rounded-lg focus:border-green-500 focus:ring-green-500"
                             value={nickname}
                             onChange={e=>setNickname(e.target.value)}
