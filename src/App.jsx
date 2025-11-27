@@ -246,6 +246,8 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
                         className={`font-extrabold py-4 px-8 rounded-full shadow-lg transition-all transform ${
                             audioStarted && !audioEnded
                                 ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                                : audioEnded
+                                ? 'bg-green-600 hover:bg-green-700 text-white hover:scale-105 animate-fastPulse'
                                 : 'bg-green-600 hover:bg-green-700 text-white hover:scale-105'
                         }`}
                     >
@@ -1298,6 +1300,22 @@ export default function App() {
                  @keyframes progressBar {
                      from { width: 0%; }
                      to { width: 100%; }
+                 }
+
+                 @keyframes fastPulse {
+                     0%, 100% {
+                         opacity: 1;
+                         transform: scale(1);
+                         box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+                     }
+                     50% {
+                         opacity: 0.7;
+                         transform: scale(1.05);
+                         box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0);
+                     }
+                 }
+                 .animate-fastPulse {
+                     animation: fastPulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                  }
 
                  /* Stili per un bel font */
