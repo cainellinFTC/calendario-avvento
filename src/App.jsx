@@ -81,7 +81,7 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
                 setAudioStarted(true);
                 setAudioEnded(false);
             }).catch(error => {
-                console.error("Errore riproduzione audio (potrebbe essere blocco autoplay):", error);
+                console.error("Errore riproduzione audio (potrebbe essere blocco autoplay): ", error);
                 showToast("Impossibile avviare l'audio. Clicca un punto qualsiasi della pagina e riprova.", 'error');
             });
             // -----------------------------------------
