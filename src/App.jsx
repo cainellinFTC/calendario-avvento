@@ -1001,15 +1001,12 @@ export default function App() {
 
             if (error) throw error;
 
-            showToast('Password aggiornata con successo!', 'success');
-            setShowPasswordReset(false);
-            setNewPassword('');
-
-            // Pulisci l'URL dai token
-            window.location.hash = '';
-
             // Logout per far rifare il login con la nuova password
             await supabaseClient.auth.signOut();
+
+            // Pulisci completamente l'URL e ricarica la pagina
+            window.location.href = window.location.origin + window.location.pathname;
+
         } catch (error) {
             showToast('Errore: ' + error.message, 'error');
         }
@@ -1075,7 +1072,7 @@ export default function App() {
                     <button
                         onClick={async () => {
                             await supabaseClient.auth.signOut();
-                            setShowPasswordReset(false);
+                            window.location.href = window.location.origin + window.location.pathname;
                         }}
                         className="mt-4 w-full text-sm text-gray-500 hover:text-red-500 underline transition-colors"
                     >
