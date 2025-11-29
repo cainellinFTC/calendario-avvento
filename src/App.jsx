@@ -17,6 +17,7 @@ const TEST_DAY = import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_T
 const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) || 3; // Giorni disponibili nel passato
 const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
+const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL || '';
 
 const songData = {
     1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night"  } },
@@ -1228,6 +1229,18 @@ export default function App() {
                             <div className="mt-6 text-6xl animate-bounce">
                                 🎅🎁⛄
                             </div>
+                            {PLAYLIST_URL && (
+                                <div className="mt-6">
+                                    <a
+                                        href={PLAYLIST_URL}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full transition-colors shadow-lg"
+                                    >
+                                        🎵 Ascolta tutte le canzoni
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
