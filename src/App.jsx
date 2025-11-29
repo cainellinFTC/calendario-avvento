@@ -24,7 +24,7 @@ const songData = {
     3:{ correctId:3, titles: {1:"Santa Claus Is Comin' to Town",2:"It's Beginning to Look a Lot Like Christmas",3:"Do They Know It's Christmas"} },
     4:{ correctId:2, titles: {1:"I'll Be Home for Christmas",2:"Driving Home For Christmas",3:"Have Yourself a Merry Little Christmas"  } },
     5:{ correctId:1, titles: {1:"Feliz Navidad",2:"Last Christmas",3:"All I Want for Christmas Is You"  } },
-    6:{ correctId:3, titles: {1:"Sleigh Ride",2:"Mary, Did You Know?",3:"Happy Xmas"} },
+    6:{ correctId:3, titles: {1:"Sleigh Ride",2:"Mary, Did You Know?",3:"Happy Xmas (War Is Over)"} },
     7:{ correctId:2, titles: {1:"Run Rudolph Run",2:"Have Yourself A Merry Little Christmas",3:"Auld Lang Syne"  } },
     8:{ correctId:2, titles: {1:"Jingle Bell Rock",2:"Here Comes Santa Claus",3:"Frosty the Snowman"  } },
     9:{ correctId:3, titles: {1:"Here Comes Santa Claus",2:"O Holy Night",3:"Its Beginning To Look A Lot Like Christmas"} },
@@ -839,7 +839,35 @@ export default function App() {
         }
 
         const status = getBoxStatus(day);
-        if (status === 'available') setOpenBoxId(day);
+
+        // Controllo: se è disponibile, verifica che non ci siano giorni precedenti disponibili non completati
+        if (status === 'available') {
+            // Trova il giorno disponibile più basso non ancora completato
+            const currentDay = today.getDate();
+            const minAvailableDay = Math.max(1, currentDay - MAX_PAST_DAYS + 1);
+
+            let earliestAvailableDay = null;
+            for (let d = minAvailableDay; d <= currentDay; d++) {
+                const dayStatus = getBoxStatus(d);
+                if (dayStatus === 'available') {
+                    earliestAvailableDay = d;
+                    break; // Trova il primo disponibile
+                }
+            }
+
+            // Se il giorno cliccato non è il primo disponibile, mostra errore
+            if (earliestAvailableDay !== null && day !== earliestAvailableDay) {
+                showToast(
+                    `Devi completare prima il Giorno ${earliestAvailableDay}!`,
+                    'warning',
+                    'Completa i giorni in ordine'
+                );
+                return;
+            }
+
+            // Altrimenti apri la casella
+            setOpenBoxId(day);
+        }
         else if (status === 'opened') showToast(`Hai già indicato la canzone del Giorno ${day}!`, 'info', 'Casella Già Aperta');
         else if (status === 'locked') showToast("Non puoi aprire questa casella in anticipo!", 'info', 'Ancora Bloccata');
         else if (status === 'expired') showToast(`Il Giorno ${day} è scaduto! Puoi giocare solo gli ultimi ${MAX_PAST_DAYS} giorni.`, 'warning', 'Casella Scaduta');
