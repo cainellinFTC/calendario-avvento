@@ -12,10 +12,10 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Configurazione calendario e funzionalità
-const TEST_MONTH = parseInt(import.meta.env.VITE_TEST_MONTH) || 11; // 11 = Dicembre
-const TEST_DAY = import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
-const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) || 3; // Giorni disponibili nel passato
 const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
+const TEST_MONTH = DEBUG_MODE ? (parseInt(import.meta.env.VITE_TEST_MONTH) || 11) : null; // 11 = Dicembre
+const TEST_DAY = DEBUG_MODE && import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
+const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) || 3; // Giorni disponibili nel passato
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
 const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL || '';
 
@@ -158,7 +158,9 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 
             // Funzione per calcolare lo stato di una casella (stessa logica di getBoxStatus nel parent)
             const getBoxStatus = (day) => {
-                if (today.getMonth() !== testMonth) return 'blocked';
+                // Controlla se siamo nel mese corretto (dicembre = 11, o testMonth se in debug)
+                const targetMonth = testMonth !== null ? testMonth : 11;
+                if (today.getMonth() !== targetMonth) return 'blocked';
                 if (updatedAttempts[day]) return 'opened';
                 if (day > currentDay) return 'locked';
 
@@ -662,7 +664,9 @@ export default function App() {
 
         // Funzione per calcolare lo stato di una casella
         const getBoxStatus = (day) => {
-            if (today.getMonth() !== TEST_MONTH) return 'blocked';
+            // Controlla se siamo nel mese corretto (dicembre = 11)
+            const targetMonth = DEBUG_MODE && TEST_MONTH !== null ? TEST_MONTH : 11;
+            if (today.getMonth() !== targetMonth) return 'blocked';
             if (attempts[day]) return 'opened';
 
             const currentDay = today.getDate();
@@ -790,10 +794,18 @@ export default function App() {
 
     const today = useMemo(() => {
         const d = new Date();
-        // Se il mese non è il mese di test (Dicembre), lo forziamo
-        if (d.getMonth() !== TEST_MONTH) d.setMonth(TEST_MONTH);
-        // Se TEST_DAY è impostato, forza quel giorno per il testing
-        if (TEST_DAY !== null) d.setDate(TEST_DAY);
+        // Solo in modalità debug forziamo mese e giorno
+        if (DEBUG_MODE) {
+            // Se TEST_MONTH è impostato e il mese corrente è diverso, forziamo il mese di test
+            if (TEST_MONTH !== null && d.getMonth() !== TEST_MONTH) {
+                d.setMonth(TEST_MONTH);
+            }
+            // Se TEST_DAY è impostato, forza quel giorno per il testing
+            if (TEST_DAY !== null) {
+                d.setDate(TEST_DAY);
+            }
+        }
+        // Altrimenti usa la data reale
         return d;
     }, []);
 
@@ -815,7 +827,10 @@ export default function App() {
     }, []);
 
     const getBoxStatus = (day) => {
-        if (today.getMonth() !== TEST_MONTH) return 'blocked'; // Se il mese è sbagliato, blocca
+        // Controlla se siamo nel mese corretto (dicembre = 11)
+        const targetMonth = DEBUG_MODE && TEST_MONTH !== null ? TEST_MONTH : 11;
+        if (today.getMonth() !== targetMonth) return 'blocked'; // Se il mese è sbagliato, blocca
+
         if (attempts[day]) return 'opened'; // Già completato
 
         const currentDay = today.getDate();
@@ -1331,9 +1346,9 @@ export default function App() {
 
                                 // 24 Emoji natalizie diverse (una per ogni giorno)
                                 const christmasIcons = [
-                                    '🎄', '🎅', '⛄', '🎁', '🔔', '⭐', '🕯️', '🦌',
-                                    '🎀', '❄️', '🌟', '🎊', '🎉', '🧦', '🍪', '🥛',
-                                    '🎶', '🎵', '🏠', '🛷', '🤶', '👼', '🔥', '🌲'
+                                    '🌲', '🎅', '☃️', '🎁', '🔔', '⭐', '🕯️', '🦌',
+                                    '🎀', '❄️', '🌟', '🧤', '🎉', '🧦', '🍪', '🥛',
+                                    '🎶', '🥂', '🧣', '🛷', '🤶', '👼', '🔥', '🎄'
                                 ];
                                 const iconForDay = christmasIcons[day - 1]; // Ogni giorno ha la sua icona unica
 
