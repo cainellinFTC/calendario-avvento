@@ -19,7 +19,7 @@ const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
 
 const songData = {
-    1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night (Remix)"  } },
+    1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night"  } },
     2:{ correctId:2, titles: {1:"We Wish You a Merry Christmas",2:"Deck the Halls",3:"Let It Snow"  } },
     3:{ correctId:3, titles: {1:"Santa Claus Is Comin' to Town",2:"It's Beginning to Look a Lot Like Christmas",3:"Do They Know It's Christmas"} },
     4:{ correctId:2, titles: {1:"I'll Be Home for Christmas",2:"Driving Home For Christmas",3:"Have Yourself a Merry Little Christmas"  } },
@@ -33,7 +33,7 @@ const songData = {
     12:{ correctId:1, titles: {1:"Last Christmas",2:"Christmas (Baby Please Come Home)",3:"Zat You Santa Claus?"  } },
     13:{ correctId:1, titles: {1:"Let It Snow! Let It Snow! Let It Snow!",2:"Happy Xmas (War Is Over)",3:"What Christmas Means to Me"  } },
     14:{ correctId:3, titles: {1:"Nuttin' for Christmas",2:"Go Tell It on the Mountain",3:"Magic Moments"} },
-    15:{ correctId:2, titles: {1:"Linus and Lucy (Peanuts)",2:"Marry You",3:"A Christmas Song (Chestnuts)"  } },
+    15:{ correctId:2, titles: {1:"Linus and Lucy",2:"Holly Jolly Christmas",3:"A Christmas Song"  } },
     16:{ correctId:3, titles: {1:"You're a Mean One, Mr. Grinch",2:"Simply Having a Wonderful Christmas Time",3:"Oh Happy Day"} },
     17:{ correctId:3, titles: {1:"Ding Dong Merrily on High",2:"Good King Wenceslas",3:"Rudolph The Red-Nosed Reindeer"} },
     18:{ correctId:1, titles: {1:"Santa Claus Is Coming To Town",2:"Do You Hear What I Hear?",3:"Silver Bells"  } },
