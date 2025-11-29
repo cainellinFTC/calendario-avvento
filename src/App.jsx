@@ -618,7 +618,7 @@ export default function App() {
             setSession(session);
             if (session && event === 'SIGNED_IN') {
                 // MODIFICATA: Aggiunto un titolo all'alert di successo
-                showToast(`Benvenuto, ${session.user.email}!`, 'success', 'Accesso Riuscito');
+                showToast(`Benvenuto, ${session.user.user_metadata?.display_name || session.user.email}!`, 'success', 'Accesso Riuscito');
             } else if (!session && event === 'SIGNED_OUT') {
                 showToast("Sei stato disconnesso.", 'info', 'Logout');
             }
