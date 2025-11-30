@@ -12,12 +12,19 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Configurazione calendario e funzionalità
-const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
-const CALENDAR_MONTH = parseInt(import.meta.env.VITE_MONTH) ?? 11; // 11 = Dicembre
+console.log('🔍 ENV VALUES:', {
+    VITE_ENABLE_DEBUG: import.meta.env.VITE_ENABLE_DEBUG,
+    VITE_MONTH: import.meta.env.VITE_MONTH,
+    VITE_TEST_DAY: import.meta.env.VITE_TEST_DAY,
+    VITE_MAX_PAST_DAYS: import.meta.env.VITE_MAX_PAST_DAYS
+});
+const DEBUG_MODE = import.meta.env.VITE_ENABLE_DEBUG === 'true';
+const CALENDAR_MONTH = parseInt(import.meta.env.VITE_MONTH || "11"); // 11 = Dicembre
 const TEST_DAY = DEBUG_MODE && import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
-const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) ?? 3; // Giorni disponibili nel passato
+const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS || "3"); // Giorni disponibili nel passato
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
-const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL ?? '';
+const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL || '';
+console.log('✅ PARSED VALUES:', { DEBUG_MODE, CALENDAR_MONTH, TEST_DAY, MAX_PAST_DAYS });
 
 const songData = {
     1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night"  } },
