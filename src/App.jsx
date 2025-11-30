@@ -340,6 +340,22 @@ const AuthScreen = ({ supabaseClient }) => {
 
             let result;
             if (isRegistering) {
+                // Prima di registrare, controlla se il nome cognome esiste già
+                const { data: existingProfiles, error: checkError } = await supabaseClient
+                    .from('profiles')
+                    .select('display_name')
+                    .ilike('display_name', nickname)
+                    .limit(1);
+
+                if (checkError) {
+                    console.error('Errore controllo nome:', checkError);
+                    // Se c'è un errore nel controllo, proseguiamo comunque
+                }
+
+                if (existingProfiles && existingProfiles.length > 0) {
+                    throw new Error('Questo nome e cognome è già utilizzato. Scegli un nome diverso.');
+                }
+
                 // Registrazione con nickname nel display_name
                 result = await supabaseClient.auth.signUp({
                     email,
