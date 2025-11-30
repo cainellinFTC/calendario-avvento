@@ -13,11 +13,11 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Configurazione calendario e funzionalità
 const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
-const TEST_MONTH = DEBUG_MODE ? (parseInt(import.meta.env.VITE_TEST_MONTH) || 11) : null; // 11 = Dicembre
+const CALENDAR_MONTH = parseInt(import.meta.env.VITE_MONTH) ?? 11; // 11 = Dicembre
 const TEST_DAY = DEBUG_MODE && import.meta.env.VITE_TEST_DAY ? parseInt(import.meta.env.VITE_TEST_DAY) : null;
-const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) || 3; // Giorni disponibili nel passato
+const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS) ?? 3; // Giorni disponibili nel passato
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
-const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL || '';
+const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL ?? '';
 
 const songData = {
     1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night"  } },
@@ -60,7 +60,7 @@ const shuffleArray = (array) => {
 
 // RIMOSSO: Il componente ToastMessage non è più necessario.
 
-const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast, currentAttempts, currentDay, today, maxPastDays, testMonth }) => {
+const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseClient, showToast, currentAttempts, currentDay, today, maxPastDays, calendarMonth }) => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [timerRunning, setTimerRunning] = useState(false);
     const [timeElapsed, setTimeElapsed] = useState(0);
@@ -158,9 +158,8 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
 
             // Funzione per calcolare lo stato di una casella (stessa logica di getBoxStatus nel parent)
             const getBoxStatus = (day) => {
-                // Controlla se siamo nel mese corretto (dicembre = 11, o testMonth se in debug)
-                const targetMonth = testMonth !== null ? testMonth : 11;
-                if (today.getMonth() !== targetMonth) return 'blocked';
+                // Controlla se siamo nel mese corretto
+                if (today.getMonth() !== calendarMonth) return 'blocked';
                 if (updatedAttempts[day]) return 'opened';
                 if (day > currentDay) return 'locked';
 
@@ -664,9 +663,8 @@ export default function App() {
 
         // Funzione per calcolare lo stato di una casella
         const getBoxStatus = (day) => {
-            // Controlla se siamo nel mese corretto (dicembre = 11)
-            const targetMonth = DEBUG_MODE && TEST_MONTH !== null ? TEST_MONTH : 11;
-            if (today.getMonth() !== targetMonth) return 'blocked';
+            // Controlla se siamo nel mese corretto
+            if (today.getMonth() !== CALENDAR_MONTH) return 'blocked';
             if (attempts[day]) return 'opened';
 
             const currentDay = today.getDate();
@@ -794,18 +792,12 @@ export default function App() {
 
     const today = useMemo(() => {
         const d = new Date();
-        // Solo in modalità debug forziamo mese e giorno
-        if (DEBUG_MODE) {
-            // Se TEST_MONTH è impostato e il mese corrente è diverso, forziamo il mese di test
-            if (TEST_MONTH !== null && d.getMonth() !== TEST_MONTH) {
-                d.setMonth(TEST_MONTH);
-            }
-            // Se TEST_DAY è impostato, forza quel giorno per il testing
-            if (TEST_DAY !== null) {
-                d.setDate(TEST_DAY);
-            }
+        // Forza sempre il mese configurato
+        d.setMonth(CALENDAR_MONTH);
+        // In modalità debug, forza anche il giorno
+        if (TEST_DAY !== null) {
+            d.setDate(TEST_DAY);
         }
-        // Altrimenti usa la data reale
         return d;
     }, []);
 
@@ -827,9 +819,8 @@ export default function App() {
     }, []);
 
     const getBoxStatus = (day) => {
-        // Controlla se siamo nel mese corretto (dicembre = 11)
-        const targetMonth = DEBUG_MODE && TEST_MONTH !== null ? TEST_MONTH : 11;
-        if (today.getMonth() !== targetMonth) return 'blocked'; // Se il mese è sbagliato, blocca
+        // Controlla se siamo nel mese corretto
+        if (today.getMonth() !== CALENDAR_MONTH) return 'blocked'; // Se il mese è sbagliato, blocca
 
         if (attempts[day]) return 'opened'; // Già completato
 
@@ -1124,7 +1115,7 @@ export default function App() {
                     currentDay={today.getDate()}
                     today={today}
                     maxPastDays={MAX_PAST_DAYS}
-                    testMonth={TEST_MONTH}
+                    calendarMonth={CALENDAR_MONTH}
                 />
             )}
 
