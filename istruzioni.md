@@ -64,4 +64,4 @@ La classifica mostra:
 
 ### 🎄 Buon divertimento e buon Natale! 🎅🎁
 
-![Logo Circolo](/img/Logo_CRCT.png)
+![Logo Circolo](img/Logo_CRCT.png)
