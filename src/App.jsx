@@ -24,7 +24,8 @@ const TEST_DAY = DEBUG_MODE && import.meta.env.VITE_TEST_DAY ? parseInt(import.m
 const MAX_PAST_DAYS = parseInt(import.meta.env.VITE_MAX_PAST_DAYS || "3"); // Giorni disponibili nel passato
 const RANKING_VIEW = import.meta.env.VITE_RANKING_VIEW === 'true';
 const PLAYLIST_URL = import.meta.env.VITE_PLAYLIST_URL || '';
-console.log('✅ PARSED VALUES:', { DEBUG_MODE, CALENDAR_MONTH, TEST_DAY, MAX_PAST_DAYS });
+const APP_URL = window.location.origin + import.meta.env.BASE_URL; // URL completo dell'app
+console.log('✅ PARSED VALUES:', { DEBUG_MODE, CALENDAR_MONTH, TEST_DAY, MAX_PAST_DAYS, APP_URL });
 
 const songData = {
     1:{ correctId:2, titles: {1:"Jingle Bells",2:"All I Want For Christmas Is You",3:"Silent Night"  } },
@@ -344,6 +345,7 @@ const AuthScreen = ({ supabaseClient }) => {
                     email,
                     password,
                     options: {
+                        emailRedirectTo: APP_URL,
                         data: {
                             display_name: nickname
                         }
@@ -378,7 +380,7 @@ const AuthScreen = ({ supabaseClient }) => {
             if (!supabaseClient) throw new Error("Supabase non configurato.");
 
             const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/#reset-password` // URL specifico per reset
+                redirectTo: `${APP_URL}#reset-password` // URL specifico per reset
             });
 
             if (error) throw error;
