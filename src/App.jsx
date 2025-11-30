@@ -77,7 +77,7 @@ const GameModal = ({ boxId, data, onClose, userId, onAttemptSubmitted, supabaseC
             audioRef.current.currentTime = 0;
 
             // --- CARICAMENTO MP3 ---
-            audioRef.current.src = `/audio/song_${boxId}.mp3`;
+            audioRef.current.src = `${import.meta.env.BASE_URL}audio/song_${boxId}.mp3`;
             audioRef.current.play().then(() => {
                 setAudioStarted(true);
                 setAudioEnded(false);
@@ -884,7 +884,7 @@ export default function App() {
     // --- FUNZIONE CARICAMENTO ISTRUZIONI ---
     const handleShowInstructions = async () => {
         try {
-            const response = await fetch('/istruzioni.md');
+            const response = await fetch(`${import.meta.env.BASE_URL}istruzioni.md`);
             const text = await response.text();
             setInstructionsContent(text);
             setShowInstructions(true);
@@ -1096,7 +1096,7 @@ export default function App() {
     // 3. Applicazione Principale
     return (
         <div className="min-h-screen font-sans" style={{
-            backgroundImage: 'url(/img/sfondo-natale.jpg)',
+            backgroundImage: `url(${import.meta.env.BASE_URL}img/sfondo-natale.jpg)`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundAttachment: 'fixed'
@@ -1140,7 +1140,7 @@ export default function App() {
                                     .replace(/##\s⚠️\sIMPORTANTE\s⚠️/g, '<h3 class="font-extrabold text-xl mt-6 mb-3 text-red-600 bg-yellow-100 p-3 rounded-lg border-2 border-red-500 text-center animate-pulse">⚠️ IMPORTANTE ⚠️</h3>')
                                     .replace(/\*\*🏆\sS([^*]+)\*\*/g, '<p class="font-extrabold text-lg text-red-700 bg-yellow-50 p-4 rounded-lg border-l-4 border-red-600 text-center my-2">🏆 S$1</p>')
                                     .replace(/###\s🎄\sBuon\sdivertimento([^<]+)/g, '<h3 class="font-bold text-xl mt-6 mb-3 text-green-700 bg-green-50 p-3 rounded-lg border-2 border-green-400 text-center">🎄 Buon divertimento$1</h3>')
-                                    .replace(/!\[([^\]]+)\]\(([^)]+)\)/g, '<div class="flex justify-center my-4"><img src="$2" alt="$1" class="h-24 w-auto" /></div>')
+                                    .replace(/!\[([^\]]+)\]\(([^)]+)\)/g, `<div class="flex justify-center my-4"><img src="${import.meta.env.BASE_URL}$2" alt="$1" class="h-24 w-auto" /></div>`)
                                     .replace(/#{1,6}\s(.+)/g, '<h3 class="font-bold text-lg mt-4 mb-2 text-blue-700">$1</h3>')
                                     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                                     .replace(/###\s(.+)/g, '<h4 class="font-semibold text-base mt-3 mb-1 text-blue-600">$1</h4>')
@@ -1374,7 +1374,7 @@ export default function App() {
 
                         {/* Footer con Logo */}
                         <footer className="py-8 flex justify-center">
-                            <img src="/img/Logo_CRCT.png" alt="Logo Circolo FTC" className="h-20 w-auto" />
+                            <img src={`${import.meta.env.BASE_URL}img/Logo_CRCT.png`} alt="Logo Circolo FTC" className="h-20 w-auto" />
                         </footer>
                     </>
                 )}
