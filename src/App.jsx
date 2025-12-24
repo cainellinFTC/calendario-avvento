@@ -826,6 +826,18 @@ export default function App() {
         return d;
     }, []);
 
+    // Determina se il pulsante classifica deve essere visibile
+    const showRankingButton = useMemo(() => {
+        // Mostra sempre se RANKING_VIEW è true
+        if (RANKING_VIEW) return true;
+
+        // Altrimenti mostra se siamo oltre il giorno 24 + MAX_PAST_DAYS
+        const currentDay = today.getDate();
+        const rankingAvailableDay = 24 + MAX_PAST_DAYS;
+
+        return currentDay > rankingAvailableDay;
+    }, [today]);
+
     // Array dei giorni in ordine casuale (ma sempre lo stesso ordine)
     const shuffledDays = useMemo(() => {
         const days = Array.from({ length: 24 }, (_, i) => i + 1);
@@ -1198,7 +1210,7 @@ export default function App() {
                         >
                             ℹ️ Istruzioni
                         </button>
-                        {RANKING_VIEW && (
+                        {showRankingButton && (
                             <button
                                 onClick={() => {
                                     const newShowFullRanking = !showFullRanking;
